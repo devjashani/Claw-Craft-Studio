@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --void: #050505;
+  --ash: #111214;
+  --steel: #C9CDD2;
+  --bone: #F2F0EA;
+  --acid: #B8FF1F;
+  --blood: #E11D2E;
+  
+  --background: var(--void);
+  --foreground: var(--bone);
+  --muted: #8E959F;
+  --border: #22262E;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--void);
+  color: var(--bone);
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+body {
+  background-color: var(--void);
+  color: var(--bone);
+  font-family: var(--font-space-grotesk), sans-serif;
+  overflow-x: hidden;
+  position: relative;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accessible text selection */
+::selection {
+  background-color: var(--acid);
+  color: var(--void);
+}
+
+/* High-contrast focus states for WCAG AA Accessibility */
+:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 3px;
+  box-shadow: 0 0 10px rgba(184, 255, 31, 0.4);
+}
+
+/* Clean Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252830;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--acid);
+}
+
+/* Film Grain Overlay */
+.film-grain {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Halftone Matrix Pattern */
+.bg-halftone {
+  background-image: radial-gradient(rgba(201, 205, 210, 0.12) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utility: Gothic Glow */
+.text-glow-acid {
+  text-shadow: 0 0 18px rgba(184, 255, 31, 0.45);
+}
+
+.text-glow-blood {
+  text-shadow: 0 0 18px rgba(225, 29, 46, 0.5);
+}
+
+.box-glow-acid {
+  box-shadow: 0 0 30px -5px rgba(184, 255, 31, 0.35);
+}
+
+/* Utility: Gothic Clip Paths */
+.clip-claw-button {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.clip-card-gothic {
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+
+/* Cybernetic Glitch Split Masks */
+.clip-path-glitch-1 {
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+}
+
+.clip-path-glitch-2 {
+  clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+}
+
+/* 60fps GPU Compositing Optimizations */
+.gpu-accel {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+/* Hide default cursor on desktop when custom cursor is active */
+@media (hover: hover) and (pointer: fine) {
+  .has-custom-cursor {
+    cursor: none;
+  }
+  .has-custom-cursor a,
+  .has-custom-cursor button,
+  .has-custom-cursor input,
+  .has-custom-cursor textarea,
+  .has-custom-cursor select {
+    cursor: none;
+  }
+}
+

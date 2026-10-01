@@ -1,0 +1,18 @@
+<svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="600" fill="#08090A" />
+  <circle cx="300" cy="300" r="220" stroke="#17191E" stroke-width="2" />
+  <circle cx="300" cy="300" r="180" stroke="#B8FF1F" stroke-width="1" stroke-dasharray="8 8" opacity="0.4" />
+  
+  <!-- Can cylinder graphic outline -->
+  <rect x="240" y="160" width="120" height="260" rx="20" stroke="#C9CDD2" stroke-width="2" fill="#111214" />
+  <ellipse cx="300" cy="180" rx="50" ry="15" stroke="#B8FF1F" stroke-width="2" fill="#17191E" />
+  <ellipse cx="300" cy="400" rx="50" ry="15" stroke="#C9CDD2" stroke-width="2" />
+  
+  <!-- Diagonal claw slash accents across the can -->
+  <path d="M260 320L280 240L286 242L268 322Z" fill="#B8FF1F" />
+  <path d="M290 330L312 235L318 238L298 333Z" fill="#B8FF1F" />
+  <path d="M320 315L338 245L344 247L328 317Z" fill="#B8FF1F" />
+  
+  <text x="300" y="470" text-anchor="middle" font-family="monospace" font-size="14" fill="#C9CDD2" letter-spacing="4">HANDCRAFTED CAN SCULPTURE</text>
+  <text x="300" y="495" text-anchor="middle" font-family="monospace" font-size="10" fill="#B8FF1F" letter-spacing="2">CLAWCRAFT STUDIO</text>
+</svg>

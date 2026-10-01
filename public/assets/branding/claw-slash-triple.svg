@@ -1,0 +1,8 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Original Clawcraft 3-slash jagged claw marks -->
+  <path d="M15 36L30 4L37 6L22 38L15 36Z" fill="#B8FF1F" />
+  <path d="M48 39L66 2L73 4L55 40L48 39Z" fill="#B8FF1F" />
+  <path d="M82 37L98 3L105 5L89 39L82 37Z" fill="#B8FF1F" />
+  <polygon points="34,20 38,18 35,23" fill="#B8FF1F" />
+  <polygon points="71,22 75,19 73,25" fill="#B8FF1F" />
+</svg>
