@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRazorpayClient } from "@/lib/razorpay";
-import { getProducts } from "@/lib/products";
+import { getProducts, getProductImageUrl } from "@/lib/products";
 import { checkoutFormSchema } from "@/lib/validation/checkout";
 import { Coupon, Order, OrderItem } from "@/types/shop";
 import { OrderStatus, Database } from "@/types/database.types";
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         unit_price_paise: dbProduct.price_paise,
         quantity: qty,
         total_price_paise: lineTotal,
-        image_url: `/assets/products/${dbProduct.slug}.jpg`,
+        image_url: getProductImageUrl(dbProduct.slug),
       });
     }
 

@@ -7,6 +7,7 @@ import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
+import { getProductImageUrl, getProductAltText } from "@/lib/product-media";
 import {
   ShoppingBag,
   Trash2,
@@ -161,10 +162,11 @@ export default function FullCartPage() {
                       <div className="relative w-20 h-20 rounded-sm overflow-hidden bg-void border border-steel/20 shrink-0">
                         <Image
                           src={
-                            item.imageUrl ||
-                            `/assets/products/${item.slug}.jpg`
+                            item.imageUrl && !item.imageUrl.endsWith(".jpg")
+                              ? item.imageUrl
+                              : getProductImageUrl(item.slug)
                           }
-                          alt={item.title}
+                          alt={getProductAltText(item.slug, item.title)}
                           fill
                           sizes="80px"
                           className="object-cover object-center"

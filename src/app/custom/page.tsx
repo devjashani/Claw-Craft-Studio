@@ -422,19 +422,19 @@ export default function CustomBuildsPage() {
               {
                 title: "14-Can Heavy Assault Silhouette",
                 specs: "14 sanitized cans • Dual stock • 64cm width",
-                image: "/assets/products/14-can-gun-sculpture.jpg",
+                image: "/assets/products/14-can-gun-sculpture-v2.png",
                 client: "Gaming Studio Desk Piece • Mumbai",
               },
               {
                 title: "27-Can Geometric Heart Relief",
                 specs: "27 scored cans • Radial symmetry • 72cm height",
-                image: "/assets/products/27-can-heart-wall-art.jpg",
+                image: "/assets/products/27-can-heart-wall-art-v2.png",
                 client: "Loft Wall Installation • Bengaluru",
               },
               {
                 title: "8-Can Compact Tactical Relic",
                 specs: "8 cans • Reinforced polymer core • 38cm width",
-                image: "/assets/products/8-can-gun-sculpture.jpg",
+                image: "/assets/products/8-can-gun-sculpture-v2.png",
                 client: "Private Collector Display • Delhi",
               },
             ].map((arch, idx) => (

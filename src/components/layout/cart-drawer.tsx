@@ -21,6 +21,7 @@ import { usePathname } from "next/navigation";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { ClawButton } from "@/components/ui/claw-button";
+import { getProductImageUrl, getProductAltText } from "@/lib/product-media";
 
 export function CartDrawer() {
   const pathname = usePathname();
@@ -235,8 +236,12 @@ export function CartDrawer() {
                     {/* Item Thumbnail */}
                     <div className="relative w-16 h-16 rounded-sm overflow-hidden bg-ash shrink-0 border border-steel/20">
                       <Image
-                        src={item.imageUrl || `/assets/products/${item.slug}.jpg`}
-                        alt={item.title}
+                        src={
+                          item.imageUrl && !item.imageUrl.endsWith(".jpg")
+                            ? item.imageUrl
+                            : getProductImageUrl(item.slug)
+                        }
+                        alt={getProductAltText(item.slug, item.title)}
                         fill
                         sizes="64px"
                         className="object-cover object-center"

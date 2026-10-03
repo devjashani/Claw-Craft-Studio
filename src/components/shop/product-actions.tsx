@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Product } from "@/types/shop";
+import { getProductImageUrl } from "@/lib/product-media";
 import { ClawButton } from "@/components/ui/claw-button";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/components/ui/toast";
@@ -28,7 +29,7 @@ export function ProductActions({ product }: ProductActionsProps) {
         slug: product.slug,
         title: product.title,
         pricePaise: product.price_paise,
-        imageUrl: `/assets/products/${product.slug}.jpg`,
+        imageUrl: getProductImageUrl(product.slug),
         isMadeToOrder: product.is_made_to_order,
         maxStock: product.stock_count,
       },
@@ -51,7 +52,7 @@ export function ProductActions({ product }: ProductActionsProps) {
         slug: product.slug,
         title: product.title,
         pricePaise: product.price_paise,
-        imageUrl: `/assets/products/${product.slug}.jpg`,
+        imageUrl: getProductImageUrl(product.slug),
         isMadeToOrder: product.is_made_to_order,
         maxStock: product.stock_count,
       },

@@ -126,3 +126,97 @@ insert into public.coupons (
   true
 )
 on conflict (code) do nothing;
+
+-- 4. Insert Primary Product Images (v2 High Quality Assets)
+insert into public.product_images (
+  id,
+  product_id,
+  image_url,
+  alt_text,
+  display_order,
+  is_primary
+)
+select
+  'a0000001-0001-4000-8000-000000000001'::uuid,
+  id,
+  '/assets/products/8-can-gun-sculpture-v2.png',
+  '8-Can Gun Sculpture, handcrafted decorative display piece',
+  1,
+  true
+from public.products where slug = '8-can-gun-sculpture'
+on conflict (id) do update set
+  product_id = excluded.product_id,
+  image_url = excluded.image_url,
+  alt_text = excluded.alt_text,
+  display_order = excluded.display_order,
+  is_primary = excluded.is_primary;
+
+insert into public.product_images (
+  id,
+  product_id,
+  image_url,
+  alt_text,
+  display_order,
+  is_primary
+)
+select
+  'a0000001-0002-4000-8000-000000000002'::uuid,
+  id,
+  '/assets/products/14-can-gun-sculpture-v2.png',
+  '14-Can Gun Sculpture, handcrafted decorative display piece',
+  1,
+  true
+from public.products where slug = '14-can-gun-sculpture'
+on conflict (id) do update set
+  product_id = excluded.product_id,
+  image_url = excluded.image_url,
+  alt_text = excluded.alt_text,
+  display_order = excluded.display_order,
+  is_primary = excluded.is_primary;
+
+insert into public.product_images (
+  id,
+  product_id,
+  image_url,
+  alt_text,
+  display_order,
+  is_primary
+)
+select
+  'a0000001-0003-4000-8000-000000000003'::uuid,
+  id,
+  '/assets/products/12-can-heart-wall-art-v2.png',
+  '12-Can Heart Wall Art, handcrafted decorative display piece',
+  1,
+  true
+from public.products where slug = '12-can-heart-wall-art'
+on conflict (id) do update set
+  product_id = excluded.product_id,
+  image_url = excluded.image_url,
+  alt_text = excluded.alt_text,
+  display_order = excluded.display_order,
+  is_primary = excluded.is_primary;
+
+insert into public.product_images (
+  id,
+  product_id,
+  image_url,
+  alt_text,
+  display_order,
+  is_primary
+)
+select
+  'a0000001-0004-4000-8000-000000000004'::uuid,
+  id,
+  '/assets/products/27-can-heart-wall-art-v2.png',
+  '27-Can Heart Wall Art, handcrafted decorative display piece',
+  1,
+  true
+from public.products where slug = '27-can-heart-wall-art'
+on conflict (id) do update set
+  product_id = excluded.product_id,
+  image_url = excluded.image_url,
+  alt_text = excluded.alt_text,
+  display_order = excluded.display_order,
+  is_primary = excluded.is_primary;
+

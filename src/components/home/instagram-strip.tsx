@@ -9,22 +9,22 @@ export function InstagramStrip() {
   const posts = [
     {
       title: "De-tabbing & ultrasonic sanitization cycle",
-      image: "/assets/products/8-can-gun-sculpture.jpg",
+      image: "/assets/products/8-can-gun-sculpture-v2.png",
       views: "14.2K",
     },
     {
       title: "Hand-riveting the 14-Can statement sculpture",
-      image: "/assets/products/14-can-gun-sculpture.jpg",
+      image: "/assets/products/14-can-gun-sculpture-v2.png",
       views: "28.5K",
     },
     {
       title: "Stepped relief wall mounting for the 12-Can Heart",
-      image: "/assets/products/12-can-heart-wall-art.jpg",
+      image: "/assets/products/12-can-heart-wall-art-v2.png",
       views: "42.1K",
     },
     {
       title: "Assembling the monumental 27-Can Mosaic Heart",
-      image: "/assets/products/27-can-heart-wall-art.jpg",
+      image: "/assets/products/27-can-heart-wall-art-v2.png",
       views: "56.8K",
     },
   ];

@@ -1,5 +1,18 @@
 import { Product } from "@/types/shop";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getProductImageUrl,
+  getProductAltText,
+  PRODUCT_IMAGE_MAP,
+  PRODUCT_ALT_MAP,
+} from "./product-media";
+
+export {
+  getProductImageUrl,
+  getProductAltText,
+  PRODUCT_IMAGE_MAP,
+  PRODUCT_ALT_MAP,
+};
 
 export const initialProductsFallback: Product[] = [
   {
@@ -33,6 +46,17 @@ export const initialProductsFallback: Product[] = [
     display_order: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    images: [
+      {
+        id: "a0000001-0001-4000-8000-000000000001",
+        product_id: "e1a2b3c4-0001-4000-8000-000000000001",
+        image_url: "/assets/products/8-can-gun-sculpture-v2.png",
+        alt_text: "8-Can Gun Sculpture, handcrafted decorative display piece",
+        display_order: 1,
+        is_primary: true,
+        created_at: new Date().toISOString(),
+      },
+    ],
   },
   {
     id: "e1a2b3c4-0002-4000-8000-000000000002",
@@ -65,6 +89,17 @@ export const initialProductsFallback: Product[] = [
     display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    images: [
+      {
+        id: "a0000001-0002-4000-8000-000000000002",
+        product_id: "e1a2b3c4-0002-4000-8000-000000000002",
+        image_url: "/assets/products/14-can-gun-sculpture-v2.png",
+        alt_text: "14-Can Gun Sculpture, handcrafted decorative display piece",
+        display_order: 1,
+        is_primary: true,
+        created_at: new Date().toISOString(),
+      },
+    ],
   },
   {
     id: "e1a2b3c4-0003-4000-8000-000000000003",
@@ -97,6 +132,17 @@ export const initialProductsFallback: Product[] = [
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    images: [
+      {
+        id: "a0000001-0003-4000-8000-000000000003",
+        product_id: "e1a2b3c4-0003-4000-8000-000000000003",
+        image_url: "/assets/products/12-can-heart-wall-art-v2.png",
+        alt_text: "12-Can Heart Wall Art, handcrafted decorative display piece",
+        display_order: 1,
+        is_primary: true,
+        created_at: new Date().toISOString(),
+      },
+    ],
   },
   {
     id: "e1a2b3c4-0004-4000-8000-000000000004",
@@ -130,15 +176,58 @@ export const initialProductsFallback: Product[] = [
     display_order: 4,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    images: [
+      {
+        id: "a0000001-0004-4000-8000-000000000004",
+        product_id: "e1a2b3c4-0004-4000-8000-000000000004",
+        image_url: "/assets/products/27-can-heart-wall-art-v2.png",
+        alt_text: "27-Can Heart Wall Art, handcrafted decorative display piece",
+        display_order: 1,
+        is_primary: true,
+        created_at: new Date().toISOString(),
+      },
+    ],
   },
 ];
+
+function attachFallbackImages(product: Product): Product {
+  const imageUrl = getProductImageUrl(product.slug);
+  const altText = getProductAltText(product.slug, product.title);
+
+  if (product.images && product.images.length > 0) {
+    const updatedImages = product.images.map((img) => ({
+      ...img,
+      image_url: img.image_url?.endsWith(".jpg") ? imageUrl : img.image_url,
+      alt_text: img.image_url?.endsWith(".jpg") ? altText : img.alt_text,
+    }));
+    return {
+      ...product,
+      images: updatedImages,
+    };
+  }
+
+  return {
+    ...product,
+    images: [
+      {
+        id: `img-fallback-${product.id}`,
+        product_id: product.id,
+        image_url: imageUrl,
+        alt_text: altText,
+        display_order: 1,
+        is_primary: true,
+        created_at: product.created_at || new Date().toISOString(),
+      },
+    ],
+  };
+}
 
 export async function getProducts(): Promise<Product[]> {
   try {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select("*, images:product_images(*)")
       .eq("is_active", true)
       .order("display_order", { ascending: true });
 
@@ -146,7 +235,7 @@ export async function getProducts(): Promise<Product[]> {
       return initialProductsFallback;
     }
 
-    return data as unknown as Product[];
+    return (data as unknown as Product[]).map(attachFallbackImages);
   } catch {
     return initialProductsFallback;
   }
@@ -157,16 +246,18 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select("*, images:product_images(*)")
       .eq("slug", slug)
       .single();
 
     if (error || !data) {
-      return initialProductsFallback.find((p) => p.slug === slug) || null;
+      const fallback = initialProductsFallback.find((p) => p.slug === slug);
+      return fallback ? attachFallbackImages(fallback) : null;
     }
 
-    return data as unknown as Product;
+    return attachFallbackImages(data as unknown as Product);
   } catch {
-    return initialProductsFallback.find((p) => p.slug === slug) || null;
+    const fallback = initialProductsFallback.find((p) => p.slug === slug);
+    return fallback ? attachFallbackImages(fallback) : null;
   }
 }

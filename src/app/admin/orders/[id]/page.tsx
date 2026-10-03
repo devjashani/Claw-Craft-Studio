@@ -370,7 +370,13 @@ export default function AdminOrderDetailPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-14 h-14 relative bg-void border border-subtle rounded overflow-hidden shrink-0">
                       <Image
-                        src={item.image_url || "/assets/products/8-can-gun-sculpture.jpg"}
+                        src={
+                          item.image_url
+                            ? item.image_url.endsWith(".jpg")
+                              ? item.image_url.replace(".jpg", "-v2.png")
+                              : item.image_url
+                            : "/assets/products/8-can-gun-sculpture-v2.png"
+                        }
                         alt={item.product_title}
                         fill
                         className="object-cover"

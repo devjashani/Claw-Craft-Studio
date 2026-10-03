@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/types/shop";
 import { formatINR } from "@/lib/utils";
+import { getProductImageUrl } from "@/lib/product-media";
 import { useToast } from "@/components/ui/toast";
 import {
   Boxes,
@@ -177,9 +178,9 @@ export default function AdminProductsPage() {
               <tbody className="divide-y divide-subtle/60 text-xs">
                 {filteredProducts.map((p) => {
                   const thumbnail =
-                    p.images?.[0]?.image_url ||
-                    `/assets/products/${p.slug}.jpg` ||
-                    "/assets/products/8-can-gun-sculpture.jpg";
+                    p.images?.[0]?.image_url && !p.images[0].image_url.endsWith(".jpg")
+                      ? p.images[0].image_url
+                      : getProductImageUrl(p.slug);
 
                   const isLowStock = p.stock_count <= 3;
 

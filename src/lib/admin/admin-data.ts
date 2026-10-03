@@ -148,7 +148,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 229900,
             quantity: 1,
             total_price_paise: 229900,
-            image_url: "/assets/products/14-can-gun-sculpture.jpg",
+            image_url: "/assets/products/14-can-gun-sculpture-v2.png",
           },
         ],
         "ord-demo-002": [
@@ -160,7 +160,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 129900,
             quantity: 1,
             total_price_paise: 129900,
-            image_url: "/assets/products/8-can-gun-sculpture.jpg",
+            image_url: "/assets/products/8-can-gun-sculpture-v2.png",
           },
         ],
         "ord-demo-003": [
@@ -172,7 +172,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 489900,
             quantity: 1,
             total_price_paise: 489900,
-            image_url: "/assets/products/27-can-heart-wall-art.jpg",
+            image_url: "/assets/products/27-can-heart-wall-art-v2.png",
           },
         ],
       },
@@ -216,7 +216,7 @@ function getMockStore(): AdminMockStore {
           estimated_size: "100cm x 60cm",
           budget_inr: "Rs 15,000 - 20,000",
           reference_image_urls: [
-            "/assets/products/14-can-gun-sculpture.jpg",
+            "/assets/products/14-can-gun-sculpture-v2.png",
           ],
           status: "in_discussion",
           admin_notes:

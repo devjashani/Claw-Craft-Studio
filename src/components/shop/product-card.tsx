@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types/shop";
+import { getProductImageUrl, getProductAltText } from "@/lib/product-media";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { ClawButton } from "@/components/ui/claw-button";
@@ -31,7 +32,7 @@ export function ProductCard({ product }: ProductCardProps) {
       slug: product.slug,
       title: product.title,
       pricePaise: product.price_paise,
-      imageUrl: `/assets/products/${product.slug}.jpg`,
+      imageUrl: getProductImageUrl(product.slug),
       isMadeToOrder: product.is_made_to_order,
       maxStock: product.stock_count,
     });
@@ -66,8 +67,8 @@ export function ProductCard({ product }: ProductCardProps) {
           className="relative block w-full aspect-[4/3] rounded-sm overflow-hidden bg-void/90 border border-steel/10 mb-5 group-hover:border-steel/40 transition-colors"
         >
           <Image
-            src={`/assets/products/${product.slug}.jpg`}
-            alt={product.title}
+            src={getProductImageUrl(product.slug)}
+            alt={getProductAltText(product.slug, product.title)}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover object-center group-hover:scale-105 transition-transform duration-500"

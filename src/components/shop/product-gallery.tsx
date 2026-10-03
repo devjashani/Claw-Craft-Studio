@@ -39,7 +39,11 @@ export function ProductGallery({ title, images }: ProductGalleryProps) {
 
         <Image
           src={activeImage}
-          alt={`${title} - View ${selectedIndex + 1}`}
+          alt={
+            images.length === 1
+              ? `${title}, handcrafted decorative display piece`
+              : `${title} - View ${selectedIndex + 1}`
+          }
           fill
           priority
           sizes="(max-width: 1024px) 100vw, 50vw"

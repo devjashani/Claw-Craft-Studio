@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Product } from "@/types/shop";
+import { getProductImageUrl } from "@/lib/product-media";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { useToast } from "@/components/ui/toast";
@@ -96,10 +97,14 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
   // Images
   const initialImages =
     initialProduct?.images && initialProduct.images.length > 0
-      ? initialProduct.images.map((img) => img.image_url)
+      ? initialProduct.images.map((img) =>
+          img.image_url?.endsWith(".jpg")
+            ? getProductImageUrl(initialProduct.slug)
+            : img.image_url
+        )
       : initialProduct?.slug
-      ? [`/assets/products/${initialProduct.slug}.jpg`]
-      : ["/assets/products/8-can-gun-sculpture.jpg"];
+      ? [getProductImageUrl(initialProduct.slug)]
+      : [getProductImageUrl("8-can-gun-sculpture")];
 
   const [images, setImages] = useState<string[]>(initialImages);
   const [imageUrlInput, setImageUrlInput] = useState("");

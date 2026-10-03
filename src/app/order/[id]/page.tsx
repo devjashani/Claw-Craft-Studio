@@ -93,7 +93,7 @@ export default async function OrderConfirmationPage({
         unit_price_paise: 229900,
         quantity: 1,
         total_price_paise: 229900,
-        image_url: "/assets/products/14-can-gun-sculpture.jpg",
+        image_url: "/assets/products/14-can-gun-sculpture-v2.png",
       },
     ];
   }
@@ -265,7 +265,13 @@ export default async function OrderConfirmationPage({
               <div className="flex items-center gap-4">
                 <div className="relative w-16 h-16 rounded-sm overflow-hidden bg-void border border-steel/20 shrink-0">
                   <Image
-                    src={item.image_url || "/assets/products/placeholder-can-art.svg"}
+                    src={
+                      item.image_url
+                        ? item.image_url.endsWith(".jpg")
+                          ? item.image_url.replace(".jpg", "-v2.png")
+                          : item.image_url
+                        : "/assets/products/placeholder-can-art.svg"
+                    }
                     alt={item.product_title}
                     fill
                     sizes="64px"

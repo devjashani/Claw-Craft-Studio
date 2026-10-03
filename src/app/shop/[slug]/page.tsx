@@ -2,7 +2,7 @@ import React from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getProductBySlug, getProducts } from "@/lib/products";
+import { getProductBySlug, getProducts, getProductImageUrl, getProductAltText } from "@/lib/products";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductActions } from "@/components/shop/product-actions";
 import { PincodeChecker } from "@/components/shop/pincode-checker";
@@ -27,6 +27,9 @@ export async function generateMetadata({
   const product = await getProductBySlug(params.slug);
   if (!product) return { title: "Sculpture Not Found | CLAWCRAFT" };
 
+  const imageUrl = getProductImageUrl(product.slug);
+  const altText = getProductAltText(product.slug, product.title);
+
   return {
     title: `${product.title} | Handcrafted Can Art`,
     description: product.tagline || product.description,
@@ -35,12 +38,18 @@ export async function generateMetadata({
       description: product.description,
       images: [
         {
-          url: `/assets/products/${product.slug}.jpg`,
-          width: 800,
-          height: 600,
-          alt: product.title,
+          url: imageUrl,
+          width: 1536,
+          height: 1024,
+          alt: altText,
         },
       ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${product.title} | CLAWCRAFT Studio`,
+      description: product.description,
+      images: [imageUrl],
     },
   };
 }
@@ -56,18 +65,15 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     .filter((p) => p.id !== product.id)
     .slice(0, 3);
 
-  // Gallery images with angle variations
-  const productImages = [
-    `/assets/products/${product.slug}.jpg`,
-    "/assets/branding/hero-creation-adam.jpg",
-  ];
+  // Gallery images with single clean v2 product image
+  const productImages = [getProductImageUrl(product.slug)];
 
   // Schema.org JSON-LD Structured Data
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    image: [`/assets/products/${product.slug}.jpg`],
+    image: [getProductImageUrl(product.slug)],
     description: product.description,
     brand: {
       "@type": "Brand",

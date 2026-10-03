@@ -9,6 +9,7 @@ import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
+import { getProductImageUrl, getProductAltText } from "@/lib/product-media";
 import { useToast } from "@/components/ui/toast";
 import { checkoutFormSchema, CheckoutFormValues } from "@/lib/validation/checkout";
 import {
@@ -562,8 +563,12 @@ export default function CheckoutPage() {
                     >
                       <div className="relative w-12 h-12 rounded-sm overflow-hidden bg-void border border-steel/20 shrink-0">
                         <Image
-                          src={item.imageUrl || `/assets/products/${item.slug}.jpg`}
-                          alt={item.title}
+                          src={
+                            item.imageUrl && !item.imageUrl.endsWith(".jpg")
+                              ? item.imageUrl
+                              : getProductImageUrl(item.slug)
+                          }
+                          alt={getProductAltText(item.slug, item.title)}
                           fill
                           sizes="48px"
                           className="object-cover object-center"

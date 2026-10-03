@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Product } from "@/types/shop";
+import { getProductImageUrl } from "@/lib/product-media";
 import { ClawButton } from "@/components/ui/claw-button";
 import { formatINR } from "@/lib/utils";
 import { useCart } from "@/hooks/use-cart";
@@ -36,7 +37,7 @@ export function StickyMobileBar({ product }: StickyMobileBarProps) {
       slug: product.slug,
       title: product.title,
       pricePaise: product.price_paise,
-      imageUrl: `/assets/products/${product.slug}.jpg`,
+      imageUrl: getProductImageUrl(product.slug),
       isMadeToOrder: product.is_made_to_order,
       maxStock: product.stock_count,
     });
