@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types/shop";
-import { getProductImageUrl, getProductAltText } from "@/lib/product-media";
+import { getProductImageUrl, getProductAltText, getProductObjectPosition } from "@/lib/product-media";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { ClawButton } from "@/components/ui/claw-button";
@@ -13,12 +13,14 @@ import { formatINR } from "@/lib/utils";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/components/ui/toast";
 import { ShoppingBag, ArrowRight, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter();
   const { addItem } = useCart();
   const toast = useToast();
   const [isAdded, setIsAdded] = useState(false);
@@ -27,8 +29,15 @@ export function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
 
+    // If product has variants, navigate to product detail page to select variant and design option
+    if (product.variants && product.variants.length > 0) {
+      router.push(`/shop/${product.slug}`);
+      return;
+    }
+
     addItem({
       id: product.id,
+      productId: product.id,
       slug: product.slug,
       title: product.title,
       pricePaise: product.price_paise,
@@ -46,15 +55,6 @@ export function ProductCard({ product }: ProductCardProps) {
     );
   };
 
-  const discountPercent =
-    product.compare_at_price_paise &&
-    product.compare_at_price_paise > product.price_paise
-      ? Math.round(
-          ((product.compare_at_price_paise - product.price_paise) /
-            product.compare_at_price_paise) *
-            100
-        )
-      : null;
 
   return (
     <TiltCard className="p-5 flex flex-col justify-between h-full bg-ash/50 border border-steel/20 group">
@@ -71,20 +71,21 @@ export function ProductCard({ product }: ProductCardProps) {
             alt={getProductAltText(product.slug, product.title)}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            style={{ objectPosition: getProductObjectPosition(product.slug) }}
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
 
-          {/* Can Count Badge */}
+          {/* Can Count / Chip Badge */}
           <div className="absolute top-3 left-3 px-2.5 py-1 rounded-sm bg-void/90 border border-acid/50 text-acid font-mono text-[11px] font-bold tracking-widest uppercase">
-            {product.cans_count} CANS
+            {product.custom_chip || `${product.cans_count} CANS`}
           </div>
 
-          {/* Discount / Low Stock Badge */}
-          {discountPercent && (
-            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-sm bg-blood text-bone font-mono text-[10px] font-bold tracking-wider uppercase">
-              SAVE {discountPercent}%
+          {/* Custom Badge (e.g. Diwali Special) */}
+          {product.custom_badge ? (
+            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-sm bg-acid text-void font-mono text-[10px] font-bold tracking-wider uppercase shadow-acid">
+              {product.custom_badge}
             </div>
-          )}
+          ) : null}
 
           {product.is_made_to_order && (
             <div className="absolute bottom-3 left-3 px-2 py-0.5 rounded-sm bg-void/90 border border-steel/30 text-steel font-mono text-[10px] font-medium tracking-wider uppercase">
@@ -104,9 +105,9 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.tagline}
         </p>
 
-        {/* Brand safety legal notice */}
+        {/* Brand safety legal notice / Custom card tagline */}
         <p className="font-mono text-[10px] text-steel/50 uppercase tracking-widest mt-3">
-          DECORATIVE DISPLAY PIECE • NOT A WEAPON
+          {product.card_tagline || "DECORATIVE DISPLAY PIECE • NOT A WEAPON"}
         </p>
       </div>
 
@@ -118,20 +119,19 @@ export function ProductCard({ product }: ProductCardProps) {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-xl font-bold text-bone">
-              {formatINR(product.price_paise)}
+              {product.price_prefix || ""}{formatINR(product.price_paise)}
             </span>
-            {product.compare_at_price_paise && (
-              <span className="font-mono text-xs line-through text-steel/50">
-                {formatINR(product.compare_at_price_paise)}
-              </span>
-            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleAddToCart}
-            aria-label={`Add ${product.title} to cart`}
+            aria-label={
+              product.variants && product.variants.length > 0
+                ? `Select options for ${product.title}`
+                : `Add ${product.title} to cart`
+            }
             className={`p-2.5 rounded-sm border transition-all duration-300 ${
               isAdded
                 ? "border-acid bg-acid text-void scale-110 shadow-[0_0_15px_#B8FF1F]"

@@ -36,7 +36,6 @@ export interface Database {
           category: string;
           cans_count: number;
           price_paise: number;
-          compare_at_price_paise: number | null;
           stock_count: number;
           is_made_to_order: boolean;
           lead_time_days: number;
@@ -48,6 +47,14 @@ export interface Database {
           display_order: number;
           created_at: string;
           updated_at: string;
+          tags?: string[] | null;
+          custom_badge?: string | null;
+          custom_chip?: string | null;
+          card_tagline?: string | null;
+          safety_notice?: string | null;
+          object_position?: string | null;
+          is_portrait?: boolean | null;
+          price_prefix?: string | null;
         };
         Insert: {
           id?: string;
@@ -58,7 +65,6 @@ export interface Database {
           category?: string;
           cans_count: number;
           price_paise: number;
-          compare_at_price_paise?: number | null;
           stock_count?: number;
           is_made_to_order?: boolean;
           lead_time_days?: number;
@@ -70,6 +76,14 @@ export interface Database {
           display_order?: number;
           created_at?: string;
           updated_at?: string;
+          tags?: string[] | null;
+          custom_badge?: string | null;
+          custom_chip?: string | null;
+          card_tagline?: string | null;
+          safety_notice?: string | null;
+          object_position?: string | null;
+          is_portrait?: boolean | null;
+          price_prefix?: string | null;
         };
         Update: {
           id?: string;
@@ -80,7 +94,6 @@ export interface Database {
           category?: string;
           cans_count?: number;
           price_paise?: number;
-          compare_at_price_paise?: number | null;
           stock_count?: number;
           is_made_to_order?: boolean;
           lead_time_days?: number;
@@ -90,6 +103,56 @@ export interface Database {
           in_the_box?: string[];
           is_active?: boolean;
           display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+          tags?: string[] | null;
+          custom_badge?: string | null;
+          custom_chip?: string | null;
+          card_tagline?: string | null;
+          safety_notice?: string | null;
+          object_position?: string | null;
+          is_portrait?: boolean | null;
+          price_prefix?: string | null;
+        };
+        Relationships: [];
+      };
+      product_variants: {
+        Row: {
+          id: string;
+          product_id: string;
+          label: string;
+          price_paise: number;
+          stock: number;
+          sort: number;
+          sort_order?: number;
+          description_note?: string | null;
+          options?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          label: string;
+          price_paise: number;
+          stock?: number;
+          sort?: number;
+          sort_order?: number;
+          description_note?: string | null;
+          options?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          label?: string;
+          price_paise?: number;
+          stock?: number;
+          sort?: number;
+          sort_order?: number;
+          description_note?: string | null;
+          options?: string[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -191,15 +254,21 @@ export interface Database {
           razorpay_signature: string | null;
           courier_name: string | null;
           tracking_number: string | null;
+          tracking_id?: string | null;
           tracking_url: string | null;
           estimated_delivery_date: string | null;
           admin_notes: string | null;
+          public_token?: string | null;
+          payment_status?: string | null;
+          payment_meta?: Record<string, unknown> | null;
+          paid_at?: string | null;
+          email_sent_at?: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          order_number: string;
+          order_number?: string;
           status?: OrderStatus;
           customer_name: string;
           customer_email: string;
@@ -220,9 +289,15 @@ export interface Database {
           razorpay_signature?: string | null;
           courier_name?: string | null;
           tracking_number?: string | null;
+          tracking_id?: string | null;
           tracking_url?: string | null;
           estimated_delivery_date?: string | null;
           admin_notes?: string | null;
+          public_token?: string;
+          payment_status?: string;
+          payment_meta?: Record<string, unknown> | null;
+          paid_at?: string | null;
+          email_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -249,9 +324,15 @@ export interface Database {
           razorpay_signature?: string | null;
           courier_name?: string | null;
           tracking_number?: string | null;
+          tracking_id?: string | null;
           tracking_url?: string | null;
           estimated_delivery_date?: string | null;
           admin_notes?: string | null;
+          public_token?: string;
+          payment_status?: string;
+          payment_meta?: Record<string, unknown> | null;
+          paid_at?: string | null;
+          email_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -267,6 +348,9 @@ export interface Database {
           quantity: number;
           total_price_paise: number;
           image_url: string | null;
+          variant_id?: string | null;
+          variant_label?: string | null;
+          selected_option?: string | null;
         };
         Insert: {
           id?: string;
@@ -277,6 +361,9 @@ export interface Database {
           quantity: number;
           total_price_paise: number;
           image_url?: string | null;
+          variant_id?: string | null;
+          variant_label?: string | null;
+          selected_option?: string | null;
         };
         Update: {
           id?: string;
@@ -287,6 +374,9 @@ export interface Database {
           quantity?: number;
           total_price_paise?: number;
           image_url?: string | null;
+          variant_id?: string | null;
+          variant_label?: string | null;
+          selected_option?: string | null;
         };
         Relationships: [];
       };

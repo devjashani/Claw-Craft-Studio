@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 
 export interface CartItem {
   id: string;
+  productId?: string;
   slug: string;
   title: string;
   pricePaise: number;
@@ -12,6 +13,9 @@ export interface CartItem {
   imageUrl?: string;
   isMadeToOrder?: boolean;
   maxStock?: number;
+  variantId?: string;
+  variantLabel?: string;
+  selectedOption?: string;
 }
 
 interface CartStore {

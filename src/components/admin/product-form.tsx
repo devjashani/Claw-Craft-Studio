@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Product } from "@/types/shop";
+import { Product, ProductVariant } from "@/types/shop";
 import { getProductImageUrl } from "@/lib/product-media";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
@@ -39,11 +39,6 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
   const [priceRupees, setPriceRupees] = useState<number>(
     initialProduct ? Math.round(initialProduct.price_paise / 100) : 1299
   );
-  const [comparePriceRupees, setComparePriceRupees] = useState<number | "">(
-    initialProduct?.compare_at_price_paise
-      ? Math.round(initialProduct.compare_at_price_paise / 100)
-      : ""
-  );
 
   // Inventory & Lead time
   const [stockCount, setStockCount] = useState<number>(initialProduct?.stock_count ?? 5);
@@ -53,6 +48,38 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
   const [leadTimeDays, setLeadTimeDays] = useState<number>(
     initialProduct?.lead_time_days ?? 3
   );
+
+  // Generic Product Variants
+  const [variants, setVariants] = useState<ProductVariant[]>(
+    initialProduct?.variants || []
+  );
+
+  const handleAddVariant = () => {
+    const newVar: ProductVariant = {
+      id: `var-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      product_id: initialProduct?.id || "",
+      label: "New Variant",
+      price_paise: priceRupees * 100,
+      stock: 5,
+      sort: variants.length + 1,
+      sort_order: variants.length + 1,
+      description_note: null,
+      options: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setVariants([...variants, newVar]);
+  };
+
+  const handleUpdateVariant = (index: number, updates: Partial<ProductVariant>) => {
+    setVariants(
+      variants.map((v, i) => (i === index ? { ...v, ...updates } : v))
+    );
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
 
   // Dimensions & Weight
   const [widthCm, setWidthCm] = useState<number>(
@@ -200,8 +227,6 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
 
     try {
       const pricePaise = Math.round(Number(priceRupees) * 100);
-      const comparePricePaise =
-        comparePriceRupees !== "" ? Math.round(Number(comparePriceRupees) * 100) : null;
 
       const payload = {
         title: title.trim(),
@@ -211,7 +236,6 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
         category,
         cans_count: Number(cansCount),
         price_paise: pricePaise,
-        compare_at_price_paise: comparePricePaise,
         stock_count: Number(stockCount),
         is_made_to_order: isMadeToOrder,
         lead_time_days: Number(leadTimeDays),
@@ -223,6 +247,11 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
         weight_grams: Number(weightGrams),
         materials,
         in_the_box: inTheBox,
+        variants: variants.map((v, idx) => ({
+          ...v,
+          sort: idx + 1,
+          sort_order: idx + 1,
+        })),
         is_active: isActive,
         display_order: Number(displayOrder),
       };
@@ -417,21 +446,6 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
                 </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-mono uppercase text-muted mb-1">
-                  Compare At Price (₹) <span className="text-muted/60">(Optional Strikethrough)</span>
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={comparePriceRupees}
-                  onChange={(e) =>
-                    setComparePriceRupees(e.target.value ? Number(e.target.value) : "")
-                  }
-                  placeholder="1599"
-                  className="w-full bg-void border border-subtle px-3 py-2 text-sm text-bone font-mono focus:border-acid focus:outline-none"
-                />
-              </div>
 
               <div>
                 <label className="block text-xs font-mono uppercase text-muted mb-1">
@@ -475,6 +489,132 @@ export function ProductForm({ initialProduct, isEdit = false }: ProductFormProps
                 </span>
               </label>
             </div>
+          </div>
+
+          {/* Generic Product Variants & Per-Variant Stock */}
+          <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
+            <FiligreeCorner position="top-right" size={14} />
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-base uppercase text-bone">
+                  Product Variants & Per-Variant Stock
+                </h2>
+                <p className="text-xs text-muted font-mono mt-0.5">
+                  Optional. For multi-option or multi-pack items (e.g. Can Candles). Leave empty for standard single-piece items.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddVariant}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-void border border-subtle hover:border-acid text-xs font-mono text-bone hover:text-acid rounded transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Variant</span>
+              </button>
+            </div>
+
+            {variants.length === 0 ? (
+              <div className="p-4 bg-void border border-dashed border-subtle text-center text-xs font-mono text-muted">
+                No variants configured. Product sells as a single unit using standard catalog price and stock above.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {variants.map((v, idx) => (
+                  <div
+                    key={v.id || idx}
+                    className="p-4 bg-void border border-subtle rounded space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-subtle/40 pb-2">
+                      <span className="font-mono text-xs uppercase text-acid font-bold">
+                        Variant #{idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVariant(idx)}
+                        className="text-muted hover:text-blood transition-colors p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-muted mb-1">
+                          Variant Label *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={v.label}
+                          onChange={(e) =>
+                            handleUpdateVariant(idx, { label: e.target.value })
+                          }
+                          placeholder="e.g. Single can, Pack of 4"
+                          className="w-full bg-ash border border-subtle px-2.5 py-1.5 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-muted mb-1">
+                          Price (₹) *
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          required
+                          value={Math.round(v.price_paise / 100)}
+                          onChange={(e) =>
+                            handleUpdateVariant(idx, {
+                              price_paise: Math.round(Number(e.target.value) * 100),
+                            })
+                          }
+                          placeholder="179"
+                          className="w-full bg-ash border border-subtle px-2.5 py-1.5 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase text-muted mb-1">
+                          Stock Units *
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          required
+                          value={v.stock}
+                          onChange={(e) =>
+                            handleUpdateVariant(idx, {
+                              stock: Math.max(0, Number(e.target.value)),
+                            })
+                          }
+                          placeholder="5"
+                          className="w-full bg-ash border border-subtle px-2.5 py-1.5 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase text-muted mb-1">
+                        Selectable Options (comma-separated, optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={Array.isArray(v.options) ? v.options.join(", ") : ""}
+                        onChange={(e) =>
+                          handleUpdateVariant(idx, {
+                            options: e.target.value
+                              ? e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                              : [],
+                          })
+                        }
+                        placeholder="e.g. Violet, Black, Rose, Teal"
+                        className="w-full bg-ash border border-subtle px-2.5 py-1.5 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Description & Legal Safety Reminder */}

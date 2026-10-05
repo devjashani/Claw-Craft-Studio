@@ -252,6 +252,12 @@ export function CartDrawer() {
                       <h3 className="font-display uppercase text-sm text-bone truncate">
                         {item.title}
                       </h3>
+                      {item.variantLabel && (
+                        <p className="font-mono text-[11px] text-steel">
+                          Variant: <span className="text-bone">{item.variantLabel}</span>
+                          {item.selectedOption ? ` • ${item.selectedOption}` : ""}
+                        </p>
+                      )}
                       <p className="font-mono text-xs text-acid mt-0.5 font-bold">
                         {formatINR(item.pricePaise)}
                       </p>

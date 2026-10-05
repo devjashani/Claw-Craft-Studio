@@ -179,6 +179,12 @@ export default function FullCartPage() {
                             {item.title}
                           </h3>
                         </Link>
+                        {item.variantLabel && (
+                          <p className="font-mono text-xs text-steel mt-0.5">
+                            Variant: <span className="text-bone">{item.variantLabel}</span>
+                            {item.selectedOption ? ` • Option: ${item.selectedOption}` : ""}
+                          </p>
+                        )}
                         <p className="font-mono text-sm text-acid font-bold mt-0.5">
                           {formatINR(item.pricePaise)}
                         </p>

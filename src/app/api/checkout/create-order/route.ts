@@ -3,14 +3,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { getProducts, getProductImageUrl } from "@/lib/products";
 import { checkoutFormSchema } from "@/lib/validation/checkout";
-import { Coupon, Order, OrderItem } from "@/types/shop";
-import { OrderStatus, Database } from "@/types/database.types";
+import { Coupon } from "@/types/shop";
+import { createOrder, CreateOrderInputItem } from "@/lib/orders/order-service";
 
 export const dynamic = "force-dynamic";
 
 interface CheckoutItemPayload {
   id: string;
+  productId?: string;
   quantity: number;
+  variantId?: string;
+  variantLabel?: string;
+  selectedOption?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -37,11 +41,14 @@ export async function POST(req: NextRequest) {
 
     const data = validationResult.data;
 
-    // 2. SERVER-SIDE PRICE RECALCULATION (NEVER trust client prices)
+    // 2. SERVER-SIDE PRICE RECALCULATION (NEVER trust client prices, recompute strictly per variant from DB)
     const catalog = await getProducts();
     const orderItemsToInsert: Array<{
       product_id: string;
       product_title: string;
+      variant_id?: string | null;
+      variant_label?: string | null;
+      selected_option?: string | null;
       unit_price_paise: number;
       quantity: number;
       total_price_paise: number;
@@ -51,22 +58,41 @@ export async function POST(req: NextRequest) {
     let calculatedSubtotalPaise = 0;
 
     for (const item of items) {
-      const dbProduct = catalog.find((p) => p.id === item.id);
+      const targetProductId = item.productId || item.id;
+      const dbProduct = catalog.find(
+        (p) => p.id === targetProductId || p.slug === targetProductId
+      );
       if (!dbProduct) {
         return NextResponse.json(
-          { error: `Product not found in catalog (ID: ${item.id}).` },
+          { error: `Product not found in catalog (ID: ${targetProductId}).` },
           { status: 400 }
         );
       }
 
+      // Recompute price strictly from database variant if variant specified
+      let unitPricePaise = dbProduct.price_paise;
+      let variantLabel = item.variantLabel || null;
+      let variantId = item.variantId || null;
+
+      if (variantId && dbProduct.variants && dbProduct.variants.length > 0) {
+        const foundVariant = dbProduct.variants.find((v) => v.id === variantId);
+        if (foundVariant) {
+          unitPricePaise = foundVariant.price_paise;
+          variantLabel = foundVariant.label;
+        }
+      }
+
       const qty = Math.max(1, Math.floor(item.quantity));
-      const lineTotal = dbProduct.price_paise * qty;
+      const lineTotal = unitPricePaise * qty;
       calculatedSubtotalPaise += lineTotal;
 
       orderItemsToInsert.push({
         product_id: dbProduct.id,
         product_title: dbProduct.title,
-        unit_price_paise: dbProduct.price_paise,
+        variant_id: variantId,
+        variant_label: variantLabel,
+        selected_option: item.selectedOption || null,
+        unit_price_paise: unitPricePaise,
         quantity: qty,
         total_price_paise: lineTotal,
         image_url: getProductImageUrl(dbProduct.slug),
@@ -132,63 +158,55 @@ export async function POST(req: NextRequest) {
       calculatedSubtotalPaise - calculatedDiscountPaise + shippingFeePaise
     );
 
-    // 6. Generate Sequential Order Number: CC-YYYY-XXXX
-    const currentYear = new Date().getFullYear();
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderNumber = `CC-${currentYear}-${randomSuffix}`;
-
-    // 7. Check if COD is requested
+    // 6. Check if COD is requested
     const isCod = data.paymentMethod === "cod";
-    const initialStatus: OrderStatus = isCod ? "processing" : "pending_payment";
 
-    // 8. Create Order in Supabase Database (or memory fallback)
-    const supabase = createAdminClient();
-    const orderPayload: Database["public"]["Tables"]["orders"]["Insert"] = {
-      order_number: orderNumber,
-      status: initialStatus,
-      customer_name: data.name,
-      customer_email: data.email,
-      customer_phone: data.phone,
-      shipping_address_line1: data.addressLine1,
-      shipping_address_line2: data.addressLine2 || null,
-      shipping_city: data.city,
-      shipping_state: data.state,
-      shipping_pincode: data.pincode,
-      subtotal_paise: calculatedSubtotalPaise,
-      discount_paise: calculatedDiscountPaise,
-      shipping_fee_paise: shippingFeePaise,
-      total_paise: calculatedTotalPaise,
-      coupon_id: validCouponId,
-      payment_method: data.paymentMethod,
-    };
+    // 7. Create Order via unified data layer
+    const orderItemsForCreate: CreateOrderInputItem[] = orderItemsToInsert.map((item, idx) => ({
+      id: `item-${idx}`,
+      productId: item.product_id,
+      slug: "",
+      title: item.product_title,
+      pricePaise: item.unit_price_paise,
+      quantity: item.quantity,
+      imageUrl: item.image_url,
+      variantId: item.variant_id,
+      variantLabel: item.variant_label,
+      selectedOption: item.selected_option,
+    }));
 
-    let createdOrder: Order | null = null;
+    const orderResult = await createOrder({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      addressLine1: data.addressLine1,
+      addressLine2: data.addressLine2,
+      city: data.city,
+      state: data.state,
+      pincode: data.pincode,
+      paymentMethod: data.paymentMethod,
+      items: orderItemsForCreate,
+      subtotalPaise: calculatedSubtotalPaise,
+      discountPaise: calculatedDiscountPaise,
+      shippingFeePaise,
+      totalPaise: calculatedTotalPaise,
+      couponId: validCouponId,
+      couponCode: data.couponCode,
+    });
 
-    try {
-      const { data: dbOrder, error: orderError } = await supabase
-        .from("orders")
-        .insert(orderPayload as any)
-        .select()
-        .single();
-
-      if (!orderError && dbOrder) {
-        createdOrder = dbOrder as unknown as Order;
-
-        // Insert Order Items
-        const itemsWithOrderId = orderItemsToInsert.map((item) => ({
-          ...item,
-          order_id: createdOrder!.id,
-        }));
-
-        await supabase.from("order_items").insert(itemsWithOrderId as any);
-      }
-    } catch {
-      // In offline/mock mode without live Supabase
+    if (!orderResult.success || !orderResult.order) {
+      return NextResponse.json(
+        { error: orderResult.error || "Store is not connected. Database is currently unavailable." },
+        { status: 503 }
+      );
     }
 
-    const finalOrderId = createdOrder ? createdOrder.id : `mock-ord-${Date.now()}`;
+    const createdOrder = orderResult.order;
+    const finalOrderId = createdOrder.id;
+    const orderNumber = createdOrder.order_number;
+    const publicToken = createdOrder.public_token;
 
-    // 9. If Razorpay, generate Razorpay Order
+    // 8. If Razorpay, generate Razorpay Order
     let razorpayOrderId: string | null = null;
 
     if (!isCod) {
@@ -207,8 +225,8 @@ export async function POST(req: NextRequest) {
 
         razorpayOrderId = rzpOrder.id;
 
-        // Save razorpay_order_id in DB
-        if (createdOrder) {
+        if (!orderResult.isDemo) {
+          const supabase = createAdminClient();
           await supabase
             .from("orders")
             .update({ razorpay_order_id: razorpayOrderId } as any)
@@ -216,7 +234,6 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.warn("[Razorpay Test Mode Notice] Live credentials pending or test order:", err);
-        // Fallback test order id so testing proceeds smoothly
         razorpayOrderId = `order_${Math.random().toString(36).substring(2, 16)}`;
       }
     }
@@ -225,6 +242,7 @@ export async function POST(req: NextRequest) {
       success: true,
       orderId: finalOrderId,
       orderNumber,
+      publicToken,
       totalPaise: calculatedTotalPaise,
       subtotalPaise: calculatedSubtotalPaise,
       discountPaise: calculatedDiscountPaise,
@@ -232,6 +250,7 @@ export async function POST(req: NextRequest) {
       razorpayOrderId,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
       isCod,
+      isDemo: orderResult.isDemo,
     });
   } catch (error) {
     console.error("[Checkout Create Order Error]:", error);

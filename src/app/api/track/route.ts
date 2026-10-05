@@ -1,63 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { Order, OrderItem } from "@/types/shop";
+import { getOrder, verifyOrderAccess } from "@/lib/orders/order-service";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderIdentifier, phone } = await req.json();
-
-    if (!orderIdentifier || !phone) {
+    const ip = req.headers.get("x-forwarded-for") || "anonymous";
+    const rl = checkRateLimit(`track_${ip}`, 15, 60000);
+    if (!rl.success) {
       return NextResponse.json(
-        { error: "Order ID/Number and Phone number are required." },
+        { error: "Too many tracking lookups. Please wait a minute and retry." },
+        { status: 429 }
+      );
+    }
+
+    const { orderIdentifier, phone, token } = await req.json();
+
+    if (!orderIdentifier || (!phone && !token)) {
+      return NextResponse.json(
+        { error: "Order reference and registered phone number or security token are required." },
         { status: 400 }
       );
     }
 
     const cleanIdentifier = orderIdentifier.trim().toUpperCase();
-    const cleanPhone = phone.replace(/[^0-9]/g, "");
+    const { order, items } = await getOrder(cleanIdentifier);
 
-    const supabase = createAdminClient();
-
-    // Search by order_number or id
-    const { data: dbOrders, error } = await supabase
-      .from("orders")
-      .select("*")
-      .or(`order_number.eq.${cleanIdentifier},id.eq.${cleanIdentifier}`);
-
-    if (error || !dbOrders || dbOrders.length === 0) {
+    if (!order) {
       return NextResponse.json(
         { error: "No matching order found. Please check your order reference." },
         { status: 404 }
       );
     }
 
-    // Verify phone number matches last 4 or full digits
-    const matchingOrder = dbOrders.find((o) => {
-      const orderPhone = o.customer_phone.replace(/[^0-9]/g, "");
-      return orderPhone.endsWith(cleanPhone) || cleanPhone.endsWith(orderPhone);
-    }) as unknown as Order | undefined;
-
-    if (!matchingOrder) {
+    // Security check: token comparison or phone verification
+    const access = verifyOrderAccess(order, token, phone);
+    if (!access.allowed) {
       return NextResponse.json(
         {
           error:
-            "Phone number does not match the record for this order. Please verify.",
+            "Verification failed. The phone number does not match studio records for this order.",
         },
         { status: 403 }
       );
     }
 
-    // Fetch items
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("*")
-      .eq("order_id", matchingOrder.id);
-
     return NextResponse.json({
-      order: matchingOrder,
-      items: (items as unknown as OrderItem[]) || [],
+      order,
+      items,
     });
   } catch (err) {
     console.error("[Track API Error]:", err);

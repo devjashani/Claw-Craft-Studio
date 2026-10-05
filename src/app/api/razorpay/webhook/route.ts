@@ -52,13 +52,45 @@ export async function POST(req: NextRequest) {
 
         if (order) {
           // Idempotency: skip if already marked as paid
-          if (order.status !== "paid") {
+          if (order.payment_status !== "paid" && order.status !== "paid") {
+            const nowIso = new Date().toISOString();
+
+            // Extract non-sensitive payment metadata
+            let paymentMeta: Record<string, unknown> = {};
+            if (payment.method === "card" && payment.card) {
+              paymentMeta = {
+                method: "card",
+                network: payment.card.network,
+                last4: payment.card.last4,
+                type: payment.card.type,
+              };
+            } else if (payment.method === "upi") {
+              paymentMeta = {
+                method: "upi",
+                vpa: payment.vpa ? payment.vpa.replace(/(.{2})(.*)(@.*)/, "$1***$3") : undefined,
+              };
+            } else if (payment.method === "netbanking") {
+              paymentMeta = {
+                method: "netbanking",
+                bank: payment.bank,
+              };
+            } else if (payment.method === "wallet") {
+              paymentMeta = {
+                method: "wallet",
+                wallet: payment.wallet,
+              };
+            }
+
             await supabase
               .from("orders")
               .update({
                 status: "paid",
+                payment_status: "paid",
+                payment_method: payment.method || order.payment_method || "razorpay",
+                payment_meta: paymentMeta,
+                paid_at: nowIso,
                 razorpay_payment_id: rzpPaymentId,
-                updated_at: new Date().toISOString(),
+                updated_at: nowIso,
               } as any)
               .eq("id", order.id);
 
@@ -79,9 +111,19 @@ export async function POST(req: NextRequest) {
 
             const items = (dbItems as unknown as OrderItem[]) || [];
 
-            sendCustomerOrderConfirmationEmail({ order, items }).catch((err) =>
-              console.error("[Webhook Email Error]:", err)
-            );
+            sendCustomerOrderConfirmationEmail({ order, items })
+              .then(async () => {
+                try {
+                  await supabase
+                    .from("orders")
+                    .update({ email_sent_at: new Date().toISOString() } as any)
+                    .eq("id", order.id);
+                } catch {
+                  // ignore
+                }
+              })
+              .catch((err) => console.error("[Webhook Email Error]:", err));
+
             sendAdminOrderAlertEmail({ order, items }).catch((err) =>
               console.error("[Webhook Admin Alert Error]:", err)
             );
@@ -99,6 +141,7 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("orders")
           .update({
+            payment_status: "failed",
             admin_notes: `Payment failed: ${payment.error_description || "Unknown error"}`,
             updated_at: new Date().toISOString(),
           } as any)

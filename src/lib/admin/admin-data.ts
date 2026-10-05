@@ -27,6 +27,9 @@ export interface SiteSettingsMap {
   announcement_bar_text: string;
   whatsapp_number: string;
   admin_notification_email: string;
+  business_address?: string;
+  gstin?: string;
+  watermark_text?: string;
 }
 
 // In-memory fallback state to preserve changes across admin actions when Supabase is in mock mode
@@ -248,6 +251,9 @@ function getMockStore(): AdminMockStore {
           "HANDCRAFTED FROM CLEANED RECYCLED CANS • FREE PAN-INDIA SHIPPING ON ORDERS ABOVE ₹2,999",
         whatsapp_number: "919876543210",
         admin_notification_email: "studio@clawcraft.in",
+        business_address: "",
+        gstin: "",
+        watermark_text: "CLAWCRAFT STUDIO",
       },
     };
   }
@@ -308,7 +314,7 @@ export async function getAdminProducts(): Promise<Product[]> {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select("*, images:product_images(*), variants:product_variants(*)")
       .order("display_order", { ascending: true });
 
     if (!error && data && data.length > 0) {
@@ -327,7 +333,7 @@ export async function getAdminProductById(id: string): Promise<Product | null> {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select("*, images:product_images(*), variants:product_variants(*)")
       .eq("id", id)
       .single();
 
@@ -362,7 +368,6 @@ export async function saveAdminProduct(
     category: productData.category || "sculptures",
     cans_count: productData.cans_count ?? 8,
     price_paise: productData.price_paise,
-    compare_at_price_paise: productData.compare_at_price_paise ?? null,
     stock_count: productData.stock_count ?? 5,
     is_made_to_order: productData.is_made_to_order ?? false,
     lead_time_days: productData.lead_time_days ?? 3,
@@ -378,6 +383,7 @@ export async function saveAdminProduct(
       "Certificate of Authenticity",
       "Studio Sticker Pack",
     ],
+    variants: productData.variants || [],
     is_active: productData.is_active ?? true,
     display_order: productData.display_order ?? store.products.length + 1,
     created_at: productData.created_at || new Date().toISOString(),
@@ -390,6 +396,21 @@ export async function saveAdminProduct(
       await supabase.from("products").update(fullPayload as any).eq("id", productData.id);
     } else {
       await supabase.from("products").insert(fullPayload as any);
+    }
+
+    if (fullPayload.variants && fullPayload.variants.length > 0) {
+      for (const variant of fullPayload.variants) {
+        const variantPayload = {
+          id: variant.id || `var-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          product_id: fullPayload.id,
+          label: variant.label,
+          price_paise: variant.price_paise,
+          stock: variant.stock,
+          sort_order: variant.sort_order ?? 1,
+          options: variant.options || null,
+        };
+        await supabase.from("product_variants").upsert(variantPayload as any);
+      }
     }
   } catch {
     // Fallback
@@ -404,6 +425,33 @@ export async function saveAdminProduct(
   }
 
   return fullPayload;
+}
+
+export async function updateVariantStock(
+  productId: string,
+  variantId: string,
+  newStock: number
+): Promise<boolean> {
+  const stock = Math.max(0, newStock);
+  try {
+    const supabase = createAdminClient();
+    await supabase
+      .from("product_variants")
+      .update({ stock: stock } as any)
+      .eq("id", variantId);
+  } catch {
+    // ignore
+  }
+
+  const store = getMockStore();
+  const prod = store.products.find((p) => p.id === productId);
+  if (prod && prod.variants) {
+    const v = prod.variants.find((item) => item.id === variantId);
+    if (v) {
+      v.stock = stock;
+    }
+  }
+  return true;
 }
 
 export async function deleteAdminProduct(id: string): Promise<boolean> {

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Product } from "@/types/shop";
 import { ProductCard } from "@/components/shop/product-card";
 import { ClawButton } from "@/components/ui/claw-button";
@@ -13,11 +14,25 @@ interface ShopCatalogProps {
 }
 
 export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const searchParams = useSearchParams();
+  const filterParam = searchParams.get("filter");
+  const categoryParam = searchParams.get("category");
+
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("featured");
+
+  useEffect(() => {
+    if (filterParam === "diwali-special" || filterParam === "diwali") {
+      setActiveFilter("diwali-special");
+    } else if (categoryParam) {
+      setActiveFilter(categoryParam);
+    }
+  }, [filterParam, categoryParam]);
 
   const categories = [
     { id: "all", label: "All Relics" },
+    { id: "wall-art", label: "Wall Art" },
+    { id: "desk-decor", label: "Desk & Decor" },
     { id: "sculptures", label: "Gun Sculptures" },
     { id: "hearts", label: "Heart Wall Art" },
     { id: "custom", label: "Custom Builds" },
@@ -26,13 +41,34 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
   const filteredAndSortedProducts = useMemo(() => {
     let result = [...initialProducts];
 
-    // Filter by Category
-    if (activeCategory === "sculptures") {
+    // Filter by Category or Tag
+    if (activeFilter === "wall-art") {
+      result = result.filter(
+        (p) =>
+          p.category === "Wall Art" ||
+          p.category === "wall-art" ||
+          p.category === "hearts"
+      );
+    } else if (activeFilter === "desk-decor") {
+      result = result.filter(
+        (p) =>
+          p.category === "Desk & Decor" ||
+          p.category === "desk-decor"
+      );
+    } else if (activeFilter === "sculptures") {
       result = result.filter((p) => p.category === "sculptures");
-    } else if (activeCategory === "hearts") {
+    } else if (activeFilter === "hearts") {
       result = result.filter((p) => p.category === "hearts");
-    } else if (activeCategory === "custom") {
+    } else if (activeFilter === "custom") {
       result = result.filter((p) => p.is_made_to_order);
+    } else if (activeFilter === "diwali-special") {
+      result = result.filter(
+        (p) =>
+          p.tag === "Diwali Special" ||
+          p.tags?.includes("Diwali Special") ||
+          p.custom_badge === "DIWALI SPECIAL" ||
+          p.slug === "can-candle-diwali-special"
+      );
     }
 
     // Sort
@@ -47,7 +83,7 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
     }
 
     return result;
-  }, [initialProducts, activeCategory, sortBy]);
+  }, [initialProducts, activeFilter, sortBy]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -56,14 +92,14 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
         <div>
           <div className="inline-flex items-center gap-2 mb-2 font-mono text-xs text-acid uppercase tracking-widest">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>ORIGINAL CAN METALWORK</span>
+            <span>ORIGINAL CAN METALWORK & DECOR</span>
           </div>
           <h1 className="text-4xl sm:text-6xl font-display uppercase tracking-tight text-bone">
             STUDIO VAULT
           </h1>
           <p className="font-sans text-steel text-sm sm:text-base max-w-xl mt-2 leading-relaxed">
-            Decorative display artifacts handcrafted from sanitized, reclaimed
-            energy-drink cans. Not toys. Not weapons. Built in limited studio batches.
+            Decorative display artifacts and artisanal home decor handcrafted from
+            sanitized, reclaimed energy-drink cans. Built in limited studio batches.
           </p>
         </div>
 
@@ -75,16 +111,16 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
 
       {/* Filter & Sort Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8">
-        {/* Category Filter Pills */}
+        {/* Category Filter Pills & Tag Chip */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
           <SlidersHorizontal className="w-4 h-4 text-steel/60 hidden sm:inline shrink-0 mr-1" />
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => setActiveFilter(cat.id)}
               className={cn(
                 "px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-widest whitespace-nowrap transition-all border",
-                activeCategory === cat.id
+                activeFilter === cat.id
                   ? "bg-acid text-void font-bold border-acid shadow-acid"
                   : "bg-ash/70 text-steel hover:text-bone border-steel/20 hover:border-steel/50"
               )}
@@ -92,6 +128,24 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
               {cat.label}
             </button>
           ))}
+
+          {/* Diwali Special Tag Filter Chip */}
+          <button
+            onClick={() =>
+              setActiveFilter(
+                activeFilter === "diwali-special" ? "all" : "diwali-special"
+              )
+            }
+            className={cn(
+              "px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-1.5",
+              activeFilter === "diwali-special"
+                ? "bg-acid text-void font-bold border-acid shadow-acid"
+                : "bg-void text-acid border-acid/40 hover:border-acid hover:bg-acid/10"
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-current" />
+            <span>Diwali Special</span>
+          </button>
         </div>
 
         {/* Sort Dropdown */}
@@ -121,12 +175,12 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
             No products match your selected filter criteria. Explore our custom
             commissions for made-to-order pieces.
           </p>
-          <ClawButton variant="primary" size="sm" onClick={() => setActiveCategory("all")}>
+          <ClawButton variant="primary" size="sm" onClick={() => setActiveFilter("all")}>
             Reset Filter
           </ClawButton>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSortedProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -141,7 +195,7 @@ export function ShopCatalog({ initialProducts }: ShopCatalogProps) {
                 BESPOKE COMMISSION
               </h3>
               <p className="font-sans text-xs text-steel/80 leading-relaxed mb-4">
-                Want a custom can silhouette, favorite energy-drink flavor palette,
+                Want a custom can silhouette, favorite can flavor palette,
                 or a large-scale gaming wall centerpiece?
               </p>
               <ul className="text-[11px] font-mono text-steel/70 space-y-1 mb-6">

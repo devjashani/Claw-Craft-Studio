@@ -13,6 +13,7 @@ import { ClawButton } from "@/components/ui/claw-button";
 import {
   ArrowLeft,
   Printer,
+  Download,
   Truck,
   CheckCircle2,
   Clock,
@@ -208,6 +209,16 @@ export default function AdminOrderDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <a
+            href={`/api/orders/${order.id}/slip?t=${order.public_token || ""}&admin=true`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-acid text-void font-bold text-xs font-mono rounded hover:bg-bone transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Slip (PDF)</span>
+          </a>
+
           <Link
             href={`/admin/orders/${order.id}/invoice`}
             target="_blank"
@@ -387,6 +398,12 @@ export default function AdminOrderDetailPage() {
                       <p className="font-bold text-bone text-sm">
                         {item.product_title}
                       </p>
+                      {item.variant_label && (
+                        <p className="text-xs text-acid font-mono">
+                          Variant: {item.variant_label}
+                          {item.selected_option ? ` (${item.selected_option})` : ""}
+                        </p>
+                      )}
                       <p className="text-xs text-muted font-mono">
                         Qty: {item.quantity} × {formatINR(item.unit_price_paise)}
                       </p>

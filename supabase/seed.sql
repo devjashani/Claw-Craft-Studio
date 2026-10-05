@@ -13,7 +13,6 @@ insert into public.products (
   category,
   cans_count,
   price_paise,
-  compare_at_price_paise,
   stock_count,
   is_made_to_order,
   lead_time_days,
@@ -31,7 +30,6 @@ insert into public.products (
   'sculptures',
   8,
   129900, -- Rs 1,299
-  159900, -- Rs 1,599 compare price
   5,
   false,
   2,
@@ -49,7 +47,6 @@ insert into public.products (
   'sculptures',
   14,
   229900, -- Rs 2,299
-  279900, -- Rs 2,799 compare price
   3,
   false,
   3,
@@ -67,7 +64,6 @@ insert into public.products (
   'hearts',
   12,
   199900, -- Rs 1,999
-  249900, -- Rs 2,499 compare price
   4,
   false,
   2,
@@ -85,7 +81,6 @@ insert into public.products (
   'hearts',
   27,
   489900, -- Rs 4,899
-  599900, -- Rs 5,999 compare price
   2,
   true,
   5,
@@ -219,4 +214,198 @@ on conflict (id) do update set
   alt_text = excluded.alt_text,
   display_order = excluded.display_order,
   is_primary = excluded.is_primary;
+
+-- 5 New Products Seed Data
+insert into public.products (
+  id,
+  slug,
+  title,
+  tagline,
+  description,
+  category,
+  cans_count,
+  price_paise,
+  stock_count,
+  is_made_to_order,
+  lead_time_days,
+  dimensions_cm,
+  weight_grams,
+  is_active,
+  display_order
+) values
+(
+  'e1a2b3c4-0005-4000-8000-000000000005',
+  '30-can-guitar-wall-art',
+  '30-Can Guitar Wall Art',
+  'HANDCRAFTED DECOR PIECE',
+  'Guitar-shaped wall sculpture built from 30 cans. Handcrafted decorative piece made from cleaned, empty cans. Not a toy. Not for children.',
+  'Wall Art',
+  30,
+  429900,
+  5,
+  false,
+  4,
+  '{"width": 0, "height": 0, "depth": 0}'::jsonb,
+  0,
+  true,
+  5
+),
+(
+  'e1a2b3c4-0006-4000-8000-000000000006',
+  '11-can-bow-wall-art',
+  '11-Can Bow Wall Art',
+  'HANDCRAFTED DECOR PIECE',
+  'Ribbon-bow wall piece built from 11 cans. Handcrafted decorative piece made from cleaned, empty cans. Not a toy. Not for children.',
+  'Wall Art',
+  11,
+  179900,
+  5,
+  false,
+  3,
+  '{"width": 0, "height": 0, "depth": 0}'::jsonb,
+  0,
+  true,
+  6
+),
+(
+  'e1a2b3c4-0007-4000-8000-000000000007',
+  'can-desk-station',
+  'Can Desk Station',
+  'HANDCRAFTED DECOR PIECE',
+  'Pen and desk organiser crafted from a single can. Handcrafted decorative piece made from cleaned, empty cans. Not a toy. Not for children.',
+  'Desk & Decor',
+  1,
+  34900,
+  5,
+  false,
+  2,
+  '{"width": 0, "height": 0, "depth": 0}'::jsonb,
+  0,
+  true,
+  7
+),
+(
+  'e1a2b3c4-0008-4000-8000-000000000008',
+  'can-candle-diwali-special',
+  'Can Candle - Diwali Special',
+  'HANDCRAFTED DECOR PIECE',
+  'Handcrafted decorative piece made from cleaned, empty cans. Not a toy. Not for children.',
+  'Desk & Decor',
+  1,
+  17900,
+  5,
+  false,
+  2,
+  '{"width": 0, "height": 0, "depth": 0}'::jsonb,
+  0,
+  true,
+  8
+),
+(
+  'e1a2b3c4-0009-4000-8000-000000000009',
+  '24-can-spider-wall-art',
+  '24-Can Spider Wall Art',
+  'HANDCRAFTED DECOR PIECE',
+  'Eight-legged wall sculpture built from 24 cans. Handcrafted decorative piece made from cleaned, empty cans. Not a toy. Not for children.',
+  'Wall Art',
+  24,
+  359900,
+  5,
+  false,
+  4,
+  '{"width": 0, "height": 0, "depth": 0}'::jsonb,
+  0,
+  true,
+  9
+)
+on conflict (slug) do update set
+  title = excluded.title,
+  tagline = excluded.tagline,
+  description = excluded.description,
+  category = excluded.category,
+  cans_count = excluded.cans_count,
+  price_paise = excluded.price_paise,
+  stock_count = excluded.stock_count;
+
+-- Seed Images for 5 New Products
+insert into public.product_images (id, product_id, image_url, alt_text, display_order, is_primary)
+select
+  'a0000001-0005-4000-8000-000000000005'::uuid,
+  id,
+  '/assets/products/30-can-guitar-wall-art-v1.webp',
+  'Handcrafted electric guitar wall sculpture constructed from thirty cleaned energy drink cans with decorative back illumination',
+  1,
+  true
+from public.products where slug = '30-can-guitar-wall-art'
+on conflict (id) do update set image_url = excluded.image_url, alt_text = excluded.alt_text;
+
+insert into public.product_images (id, product_id, image_url, alt_text, display_order, is_primary)
+select
+  'a0000001-0006-4000-8000-000000000006'::uuid,
+  id,
+  '/assets/products/11-can-bow-wall-art-v1.webp',
+  'Handcrafted ribbon bow wall art assembled from eleven cleaned pink energy drink cans',
+  1,
+  true
+from public.products where slug = '11-can-bow-wall-art'
+on conflict (id) do update set image_url = excluded.image_url, alt_text = excluded.alt_text;
+
+insert into public.product_images (id, product_id, image_url, alt_text, display_order, is_primary)
+select
+  'a0000001-0007-4000-8000-000000000007'::uuid,
+  id,
+  '/assets/products/can-desk-station-v1.webp',
+  'Handcrafted desk organiser and pen holder created from a single cleaned textured white energy drink can with sculpted rim',
+  1,
+  true
+from public.products where slug = 'can-desk-station'
+on conflict (id) do update set image_url = excluded.image_url, alt_text = excluded.alt_text;
+
+insert into public.product_images (id, product_id, image_url, alt_text, display_order, is_primary)
+select
+  'a0000001-0008-4000-8000-000000000008'::uuid,
+  id,
+  '/assets/products/can-candle-diwali-special-v1.webp',
+  'Set of four decorative candles set inside repurposed cut energy drink cans in metallic purple, black, pink, and teal colours',
+  1,
+  true
+from public.products where slug = 'can-candle-diwali-special'
+on conflict (id) do update set image_url = excluded.image_url, alt_text = excluded.alt_text;
+
+insert into public.product_images (id, product_id, image_url, alt_text, display_order, is_primary)
+select
+  'a0000001-0009-4000-8000-000000000009'::uuid,
+  id,
+  '/assets/products/24-can-spider-wall-art-v1.webp',
+  'Handcrafted corner wall sculpture in the shape of an eight-legged spider constructed from twenty-four cleaned colourful energy drink cans',
+  1,
+  true
+from public.products where slug = '24-can-spider-wall-art'
+on conflict (id) do update set image_url = excluded.image_url, alt_text = excluded.alt_text;
+
+-- Seed Variants for Candle
+insert into public.product_variants (id, product_id, label, price_paise, stock, sort_order, options)
+select
+  'c0000001-0001-4000-8000-000000000001'::uuid,
+  id,
+  'Single can',
+  17900,
+  5,
+  1,
+  array['Violet', 'Black', 'Rose', 'Teal']
+from public.products where slug = 'can-candle-diwali-special'
+on conflict (id) do update set label = excluded.label, price_paise = excluded.price_paise, stock = excluded.stock;
+
+insert into public.product_variants (id, product_id, label, price_paise, stock, sort_order, options)
+select
+  'c0000001-0002-4000-8000-000000000002'::uuid,
+  id,
+  'Pack of 4',
+  54900,
+  5,
+  2,
+  array['One of each colour (Violet, Black, Rose, Teal)']
+from public.products where slug = 'can-candle-diwali-special'
+on conflict (id) do update set label = excluded.label, price_paise = excluded.price_paise, stock = excluded.stock;
+
 

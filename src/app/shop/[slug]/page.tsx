@@ -65,10 +65,36 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     .filter((p) => p.id !== product.id)
     .slice(0, 3);
 
-  // Gallery images with single clean v2 product image
+  // Gallery images with single clean product image
   const productImages = [getProductImageUrl(product.slug)];
 
   // Schema.org JSON-LD Structured Data
+  const offers =
+    product.variants && product.variants.length > 0
+      ? product.variants.map((v) => ({
+          "@type": "Offer",
+          name: `${product.title} - ${v.label}`,
+          url: `https://clawcraft.in/shop/${product.slug}`,
+          priceCurrency: "INR",
+          price: (v.price_paise / 100).toFixed(2),
+          availability:
+            v.stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          itemCondition: "https://schema.org/NewCondition",
+        }))
+      : {
+          "@type": "Offer",
+          url: `https://clawcraft.in/shop/${product.slug}`,
+          priceCurrency: "INR",
+          price: (product.price_paise / 100).toFixed(2),
+          availability:
+            product.stock_count > 0 || product.is_made_to_order
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          itemCondition: "https://schema.org/NewCondition",
+        };
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -79,18 +105,18 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       "@type": "Brand",
       name: "CLAWCRAFT",
     },
-    offers: {
-      "@type": "Offer",
-      url: `https://clawcraft.in/shop/${product.slug}`,
-      priceCurrency: "INR",
-      price: (product.price_paise / 100).toFixed(2),
-      availability:
-        product.stock_count > 0 || product.is_made_to_order
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-      itemCondition: "https://schema.org/NewCondition",
-    },
+    offers,
   };
+
+  const hasDimensions =
+    product.dimensions_cm &&
+    (product.dimensions_cm.width > 0 ||
+      product.dimensions_cm.height > 0 ||
+      product.dimensions_cm.depth > 0);
+  const hasWeight = product.weight_grams && product.weight_grams > 0;
+  const hasMaterials = product.materials && product.materials.length > 0;
+  const hasInTheBox = product.in_the_box && product.in_the_box.length > 0;
+  const showSpecs = hasDimensions || hasWeight || hasMaterials || hasInTheBox;
 
   return (
     <div className="min-h-screen bg-void py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
@@ -121,14 +147,23 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-20">
           {/* Left Column: Image Gallery */}
           <div className="lg:col-span-7">
-            <ProductGallery title={product.title} images={productImages} />
+            <ProductGallery
+              title={product.title}
+              images={productImages}
+              isPortrait={product.is_portrait}
+              objectPosition={product.object_position}
+            />
           </div>
 
           {/* Right Column: Information, Pricing & Actions */}
           <div className="lg:col-span-5 flex flex-col justify-start space-y-6">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-ash border border-acid/40 text-acid font-mono text-xs font-bold uppercase tracking-widest mb-3">
-                <span>{product.cans_count} RECYCLED CANS</span>
+                <span>
+                  {product.custom_chip
+                    ? `${product.custom_chip} • RECYCLED`
+                    : `${product.cans_count} RECYCLED CANS`}
+                </span>
               </div>
 
               <h1 className="text-3xl sm:text-5xl font-display uppercase tracking-tight text-bone leading-tight">
@@ -140,22 +175,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               </p>
             </div>
 
-            {/* Price Display */}
-            <div className="p-4 rounded-sm border border-steel/20 bg-ash/40 flex items-baseline gap-4">
-              <span className="font-mono text-3xl font-bold text-bone">
-                {formatINR(product.price_paise)}
-              </span>
-              {product.compare_at_price_paise && (
-                <span className="font-mono text-base line-through text-steel/50">
-                  {formatINR(product.compare_at_price_paise)}
-                </span>
-              )}
-              <span className="font-mono text-xs text-acid ml-auto uppercase tracking-wider font-semibold">
-                Taxes Included
-              </span>
-            </div>
-
-            {/* MANDATORY LEGAL & PRODUCT SAFETY NOTICE */}
+            {/* MANDATORY LEGAL & PRODUCT DISPLAY NOTICE */}
             <div className="p-4 rounded-sm border-2 border-blood/60 bg-blood/10 flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-blood shrink-0 mt-0.5" />
               <div>
@@ -163,60 +183,98 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
                   MANDATORY DISPLAY ART NOTICE:
                 </strong>
                 <p className="font-sans text-xs text-steel leading-relaxed">
-                  Handcrafted decorative display piece made from cleaned, empty
-                  cans. <strong>Not a toy. Not a weapon. Not for children.</strong>
+                  {product.category === "sculptures" ? (
+                    <>
+                      Handcrafted decorative display piece made from cleaned, empty
+                      cans. <strong>Not a toy. Not a weapon. Not for children.</strong>
+                    </>
+                  ) : (
+                    <>
+                      Handcrafted decorative piece made from cleaned, empty cans.{" "}
+                      <strong>Not a toy. Not for children.</strong>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
 
-            {/* Quantity Selector, Add to Cart & Buy Now */}
+            {/* Candle Specific Safety Notice */}
+            {product.safety_notice && (
+              <div className="p-4 rounded-sm border-2 border-acid/50 bg-ash/60 flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-acid shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-mono text-xs text-acid uppercase tracking-wider block mb-1">
+                    SAFETY INSTRUCTIONS:
+                  </strong>
+                  <p className="font-sans text-xs text-bone leading-relaxed">
+                    {product.safety_notice}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Price, Options Selector, Quantity Selector & Actions */}
             <ProductActions product={product} />
 
             {/* Live PIN Code Delivery Verification */}
             <PincodeChecker />
 
-            {/* Specifications & Craft Details */}
-            <div className="border-t border-steel/20 pt-6 space-y-4 font-mono text-xs">
-              <div className="flex items-start gap-3">
-                <Ruler className="w-4 h-4 text-acid shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-bone uppercase tracking-wider">
-                    DIMENSIONS & WEIGHT:
-                  </span>
-                  <p className="text-steel/80 font-sans mt-0.5">
-                    {product.dimensions_cm.width}W × {product.dimensions_cm.height}H
-                    × {product.dimensions_cm.depth}D cm • Approx{" "}
-                    {product.weight_grams} grams
-                  </p>
-                </div>
-              </div>
+            {/* Specifications & Craft Details (Only shown if filled) */}
+            {showSpecs && (
+              <div className="border-t border-steel/20 pt-6 space-y-4 font-mono text-xs">
+                {(hasDimensions || hasWeight) && (
+                  <div className="flex items-start gap-3">
+                    <Ruler className="w-4 h-4 text-acid shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-bone uppercase tracking-wider">
+                        DIMENSIONS & WEIGHT:
+                      </span>
+                      <p className="text-steel/80 font-sans mt-0.5">
+                        {hasDimensions && (
+                          <>
+                            {product.dimensions_cm.width}W ×{" "}
+                            {product.dimensions_cm.height}H ×{" "}
+                            {product.dimensions_cm.depth}D cm
+                          </>
+                        )}
+                        {hasDimensions && hasWeight && " • "}
+                        {hasWeight && `Approx ${product.weight_grams} grams`}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="w-4 h-4 text-acid shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-bone uppercase tracking-wider">
-                    MATERIALS:
-                  </span>
-                  <p className="text-steel/80 font-sans mt-0.5">
-                    {product.materials.join(" • ")}
-                  </p>
-                </div>
-              </div>
+                {hasMaterials && (
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="w-4 h-4 text-acid shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-bone uppercase tracking-wider">
+                        MATERIALS:
+                      </span>
+                      <p className="text-steel/80 font-sans mt-0.5">
+                        {product.materials.join(" • ")}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-              <div className="flex items-start gap-3">
-                <Package className="w-4 h-4 text-acid shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-bone uppercase tracking-wider">
-                    WHAT&apos;S IN THE BOX:
-                  </span>
-                  <ul className="text-steel/80 font-sans mt-0.5 list-disc list-inside space-y-0.5">
-                    {product.in_the_box.map((item, i) => (
-                      <li key={i}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
+                {hasInTheBox && (
+                  <div className="flex items-start gap-3">
+                    <Package className="w-4 h-4 text-acid shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-bone uppercase tracking-wider">
+                        WHAT&apos;S IN THE BOX:
+                      </span>
+                      <ul className="text-steel/80 font-sans mt-0.5 list-disc list-inside space-y-0.5">
+                        {product.in_the_box.map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
 

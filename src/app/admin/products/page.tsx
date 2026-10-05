@@ -88,7 +88,11 @@ export default function AdminProductsPage() {
       p.slug.toLowerCase().includes(search.toLowerCase()) ||
       String(p.cans_count).includes(search);
     const matchesCategory =
-      categoryFilter === "all" || p.category === categoryFilter;
+      categoryFilter === "all" ||
+      p.category === categoryFilter ||
+      (categoryFilter === "sculptures" && (p.category === "sculptures" || p.category === "Gun Sculptures")) ||
+      (categoryFilter === "wall-art" && (p.category === "Wall Art" || p.category === "wall-art" || p.category === "Heart Wall Art")) ||
+      (categoryFilter === "desk-decor" && (p.category === "Desk & Decor" || p.category === "desk-decor"));
     return matchesSearch && matchesCategory;
   });
 
@@ -135,7 +139,8 @@ export default function AdminProductsPage() {
           {[
             { id: "all", label: "All Items" },
             { id: "sculptures", label: "Gun Sculptures" },
-            { id: "wall-art", label: "Heart Wall Art" },
+            { id: "wall-art", label: "Wall Art" },
+            { id: "desk-decor", label: "Desk & Decor" },
           ].map((cat) => (
             <button
               key={cat.id}
@@ -205,9 +210,16 @@ export default function AdminProductsPage() {
                             <p className="font-bold text-bone text-sm group-hover:text-acid transition-colors">
                               {p.title}
                             </p>
-                            <p className="text-[11px] font-mono text-muted truncate max-w-xs">
-                              {p.slug}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-mono text-muted truncate max-w-xs">
+                                {p.slug}
+                              </span>
+                              {p.variants && p.variants.length > 0 && (
+                                <span className="text-[10px] font-mono text-acid px-1.5 py-0.2 bg-acid/10 border border-acid/30 rounded">
+                                  {p.variants.length} Variants
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -221,14 +233,7 @@ export default function AdminProductsPage() {
 
                       {/* Price */}
                       <td className="py-3.5 px-4 font-mono font-bold text-bone">
-                        <div>
-                          <span>{formatINR(p.price_paise)}</span>
-                          {p.compare_at_price_paise && (
-                            <span className="block text-[10px] text-muted line-through font-normal">
-                              {formatINR(p.compare_at_price_paise)}
-                            </span>
-                          )}
-                        </div>
+                        <span>{formatINR(p.price_paise)}</span>
                       </td>
 
                       {/* Stock Quick Editor */}

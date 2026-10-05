@@ -26,6 +26,13 @@ export async function sendCustomerOrderConfirmationEmail({
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #22262E;">
           <strong style="color: #F2F0EA; font-size: 14px;">${item.product_title}</strong><br/>
+          ${
+            item.variant_label
+              ? `<span style="color: #B8FF1F; font-size: 12px; font-family: monospace;">Variant: ${item.variant_label}${
+                  item.selected_option ? ` (${item.selected_option})` : ""
+                }</span><br/>`
+              : ""
+          }
           <span style="color: #8E959F; font-size: 12px;">Qty: ${item.quantity}</span>
         </td>
         <td style="padding: 12px 0; border-bottom: 1px solid #22262E; text-align: right; color: #B8FF1F; font-family: monospace; font-size: 14px;">
@@ -103,6 +110,17 @@ export async function sendCustomerOrderConfirmationEmail({
             </p>
           </div>
 
+          <!-- Download Receipt Action -->
+          <div style="text-align: center; margin: 28px 0; padding: 20px; background-color: #050505; border: 1px solid #22262E; border-radius: 4px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in"}/api/orders/${order.id}/slip?t=${order.public_token || ""}"
+               style="background-color: #B8FF1F; color: #050505; font-family: monospace; font-size: 13px; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 2px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">
+              Download Official Receipt (PDF) &rarr;
+            </a>
+            <p style="margin: 10px 0 0; font-size: 11px; color: #8E959F; font-family: monospace;">
+              Live order tracking: <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in"}/order/${order.id}?t=${order.public_token || ""}" style="color: #B8FF1F; text-decoration: underline;">clawcraft.in/order/${order.order_number}</a>
+            </p>
+          </div>
+
           <div style="padding-top: 16px; border-top: 1px solid #22262E; font-size: 11px; color: #8E959F; line-height: 1.5;">
             <p style="margin: 0 0 8px;">
               <strong>DISCLAIMER:</strong> CLAWCRAFT is an independent art studio. Not affiliated with, sponsored by or endorsed by any beverage brand. Products are handcrafted art made from empty, recycled cans.
@@ -147,7 +165,14 @@ export async function sendAdminOrderAlertEmail({
   }
 
   const itemsSummary = items
-    .map((i) => `• ${i.quantity}x ${i.product_title} (${formatINR(i.total_price_paise)})`)
+    .map(
+      (i) =>
+        `• ${i.quantity}x ${i.product_title}${
+          i.variant_label
+            ? ` [${i.variant_label}${i.selected_option ? ` - ${i.selected_option}` : ""}]`
+            : ""
+        } (${formatINR(i.total_price_paise)})`
+    )
     .join("<br/>");
 
   const emailHtml = `

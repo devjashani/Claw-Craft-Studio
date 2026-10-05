@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Save,
   CheckCircle2,
+  FileText,
 } from "lucide-react";
 
 export default function AdminSettingsPage() {
@@ -33,6 +34,9 @@ export default function AdminSettingsPage() {
   );
   const [whatsappNumber, setWhatsappNumber] = useState("919876543210");
   const [adminNotificationEmail, setAdminNotificationEmail] = useState("studio@clawcraft.in");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [gstin, setGstin] = useState("");
+  const [watermarkText, setWatermarkText] = useState("CLAWCRAFT STUDIO");
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -48,6 +52,9 @@ export default function AdminSettingsPage() {
           setAnnouncementText(s.announcement_bar_text);
           setWhatsappNumber(s.whatsapp_number);
           setAdminNotificationEmail(s.admin_notification_email);
+          setBusinessAddress(s.business_address || "");
+          setGstin(s.gstin || "");
+          setWatermarkText(s.watermark_text || "CLAWCRAFT STUDIO");
         }
       } catch (err) {
         console.error("Failed to load settings", err);
@@ -72,6 +79,9 @@ export default function AdminSettingsPage() {
         announcement_bar_text: announcementText.trim(),
         whatsapp_number: whatsappNumber.trim(),
         admin_notification_email: adminNotificationEmail.trim(),
+        business_address: businessAddress.trim(),
+        gstin: gstin.trim(),
+        watermark_text: watermarkText.trim() || "CLAWCRAFT STUDIO",
       };
 
       const res = await fetch("/api/admin/settings", {
@@ -251,6 +261,68 @@ export default function AdminSettingsPage() {
                 Receives order alerts and commission inquiries.
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Official Receipt & Payment Slip Configuration */}
+        <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
+          <FiligreeCorner position="top-right" size={14} />
+          <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
+            <FileText className="w-4 h-4 text-steel" />
+            <span>Official Receipt & Payment Slip (PDF)</span>
+          </h2>
+          <p className="text-[11px] text-muted font-mono">
+            These parameters are embedded in downloadable customer slips, admin records, and verification QR links.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-mono uppercase text-muted mb-1">
+                Studio GSTIN (Optional)
+              </label>
+              <input
+                type="text"
+                value={gstin}
+                onChange={(e) => setGstin(e.target.value)}
+                placeholder="27AAAAA0000A1Z5"
+                className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+              />
+              <span className="text-[10px] text-muted font-mono mt-1 block">
+                If provided, slip is labeled with GSTIN. If omitted, slip states it is not a GST invoice.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono uppercase text-muted mb-1">
+                Diagonal Watermark Text
+              </label>
+              <input
+                type="text"
+                value={watermarkText}
+                onChange={(e) => setWatermarkText(e.target.value)}
+                placeholder="CLAWCRAFT STUDIO"
+                className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+              />
+              <span className="text-[10px] text-muted font-mono mt-1 block">
+                Tiled diagonally at -35° across every page of generated PDF slips.
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase text-muted mb-1">
+              Registered Business Address (Optional)
+            </label>
+            <textarea
+              rows={2}
+              value={businessAddress}
+              onChange={(e) => setBusinessAddress(e.target.value)}
+              placeholder="Workshop 4, Industrial Area Phase II, Mumbai, Maharashtra 400013"
+              className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none resize-none"
+            />
+            <span className="text-[10px] text-muted font-mono mt-1 block">
+              Printed on the receipt header if configured.
+            </span>
           </div>
         </div>
 

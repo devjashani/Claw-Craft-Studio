@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import { getProducts } from "@/lib/products";
 import { ShopCatalog } from "@/components/shop/shop-catalog";
@@ -16,7 +16,15 @@ export default async function ShopPage() {
 
   return (
     <div className="min-h-screen bg-void">
-      <ShopCatalog initialProducts={products} />
+      <Suspense
+        fallback={
+          <div className="max-w-7xl mx-auto px-4 py-16 text-center text-steel/60 font-mono text-xs">
+            Loading Vault...
+          </div>
+        }
+      >
+        <ShopCatalog initialProducts={products} />
+      </Suspense>
     </div>
   );
 }

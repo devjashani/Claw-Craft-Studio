@@ -138,7 +138,14 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
+          items: items.map((i) => ({
+            id: i.productId || i.id,
+            productId: i.productId || i.id,
+            quantity: i.quantity,
+            variantId: i.variantId,
+            variantLabel: i.variantLabel,
+            selectedOption: i.selectedOption,
+          })),
           formValues: {
             ...formData,
             couponCode: appliedCoupon ? appliedCoupon.code : formData.couponCode,
@@ -156,7 +163,10 @@ export default function CheckoutPage() {
       if (orderData.isCod) {
         clearCart();
         toast.success("Order Placed", `Order #${orderData.orderNumber} confirmed.`);
-        router.push(`/order/${orderData.orderId}`);
+        const orderUrl = orderData.publicToken
+          ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
+          : `/order/${orderData.orderId}`;
+        router.push(orderUrl);
         return;
       }
 
@@ -170,7 +180,7 @@ export default function CheckoutPage() {
         const simulateConfirm = window.confirm(
           `[RAZORPAY TEST MODE]\nOrder: ${orderData.orderNumber}\nAmount: ${formatINR(
             orderData.totalPaise
-          )}\n\nClick OK to simulate a SUCCESSFUL Razorpay payment, or Cancel to simulate payment failure.`
+          )}\n\nClick OK to simulate a SUCCESSFUL Razorpay payment, or Cancel to view the order with Payment Pending status.`
         );
 
         if (simulateConfirm) {
@@ -188,12 +198,20 @@ export default function CheckoutPage() {
           if (verifyRes.ok && verifyData.verified) {
             clearCart();
             toast.success("Payment Received", "Your test order is confirmed!");
-            router.push(`/order/${orderData.orderId}`);
+            const targetUrl = orderData.publicToken
+              ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
+              : `/order/${orderData.orderId}`;
+            router.push(targetUrl);
             return;
           }
         } else {
-          toast.error("Payment Cancelled", "Payment was not completed.");
-          setSubmitting(false);
+          // Navigating to order page with pending payment status
+          clearCart();
+          toast.info("Payment Pending", "Order created with payment pending.");
+          const pendingUrl = orderData.publicToken
+            ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
+            : `/order/${orderData.orderId}`;
+          router.push(pendingUrl);
           return;
         }
       }
@@ -232,7 +250,10 @@ export default function CheckoutPage() {
             if (verifyRes.ok && verifyData.verified) {
               clearCart();
               toast.success("Payment Confirmed", "Your sculpture order is placed.");
-              router.push(`/order/${orderData.orderId}`);
+              const targetUrl = orderData.publicToken
+                ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
+                : `/order/${orderData.orderId}`;
+              router.push(targetUrl);
             } else {
               toast.error("Verification Failed", verifyData.error || "Payment verification failed.");
               setSubmitting(false);
@@ -578,6 +599,12 @@ export default function CheckoutPage() {
                         <p className="font-display uppercase text-xs text-bone truncate">
                           {item.title}
                         </p>
+                        {item.variantLabel && (
+                          <p className="font-mono text-[10px] text-steel">
+                            {item.variantLabel}
+                            {item.selectedOption ? ` • ${item.selectedOption}` : ""}
+                          </p>
+                        )}
                         <p className="font-mono text-[11px] text-steel">
                           Qty: {item.quantity} × {formatINR(item.pricePaise)}
                         </p>

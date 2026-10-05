@@ -9,9 +9,16 @@ import { ZoomIn } from "lucide-react";
 interface ProductGalleryProps {
   title: string;
   images: string[];
+  isPortrait?: boolean;
+  objectPosition?: string;
 }
 
-export function ProductGallery({ title, images }: ProductGalleryProps) {
+export function ProductGallery({
+  title,
+  images,
+  isPortrait = false,
+  objectPosition,
+}: ProductGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -29,7 +36,10 @@ export function ProductGallery({ title, images }: ProductGalleryProps) {
     <div className="flex flex-col gap-4">
       {/* Main Viewport Container */}
       <div
-        className="relative aspect-[4/3] rounded-sm overflow-hidden border-2 border-steel/20 bg-void/90 select-none group cursor-crosshair"
+        className={cn(
+          "relative rounded-sm overflow-hidden border-2 border-steel/20 bg-void/90 select-none group cursor-crosshair",
+          isPortrait ? "aspect-[3/4] sm:aspect-[4/5] max-h-[700px]" : "aspect-[4/3]"
+        )}
         onMouseEnter={() => setIsZoomed(true)}
         onMouseLeave={() => setIsZoomed(false)}
         onMouseMove={handleMouseMove}
@@ -48,14 +58,15 @@ export function ProductGallery({ title, images }: ProductGalleryProps) {
           priority
           sizes="(max-width: 1024px) 100vw, 50vw"
           className={cn(
-            "object-cover object-center transition-transform duration-300",
-            isZoomed && "scale-150"
+            isPortrait ? "object-contain" : "object-cover",
+            "transition-transform duration-300"
           )}
-          style={
-            isZoomed
-              ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` }
-              : undefined
-          }
+          style={{
+            objectPosition: objectPosition || "center",
+            ...(isZoomed
+              ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`, transform: "scale(1.5)" }
+              : undefined),
+          }}
         />
 
         {/* Zoom Hint Indicator */}

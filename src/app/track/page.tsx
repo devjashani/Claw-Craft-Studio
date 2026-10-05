@@ -63,9 +63,9 @@ export default function TrackOrderPage() {
   };
 
   const steps = [
-    { label: "Order Received", status: "paid" },
-    { label: "Artisan Inspection", status: "processing" },
-    { label: "Armor Packed & Shipped", status: "shipped" },
+    { label: "Order received", status: "paid" },
+    { label: "Preparing", status: "processing" },
+    { label: "Shipped", status: "shipped" },
     { label: "Delivered", status: "delivered" },
   ];
 
@@ -259,6 +259,12 @@ export default function TrackOrderPage() {
                       <p className="font-display uppercase text-sm text-bone">
                         {item.product_title}
                       </p>
+                      {item.variant_label && (
+                        <p className="font-mono text-xs text-steel">
+                          Variant: <span className="text-bone">{item.variant_label}</span>
+                          {item.selected_option ? ` • Option: ${item.selected_option}` : ""}
+                        </p>
+                      )}
                       <p className="font-mono text-xs text-steel">
                         Qty: {item.quantity}
                       </p>
