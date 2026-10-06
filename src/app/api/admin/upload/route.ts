@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { uploadBufferToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { writeFile } from "fs/promises";
 import path from "path";
 
@@ -23,7 +24,22 @@ export async function POST(req: NextRequest) {
       .replace(/(^-|-$)+/g, "");
     const fileName = `${Date.now()}-${safeName}`;
 
-    // 1. Try Supabase Storage bucket 'product-media'
+    // 1. Try Cloudinary if credentials are configured
+    if (isCloudinaryConfigured()) {
+      try {
+        const cldResult = await uploadBufferToCloudinary(buffer, {
+          folder: "clawcraft/products",
+          publicId: fileName.replace(/\.[^/.]+$/, ""),
+        });
+        if (cldResult.success && cldResult.url) {
+          return NextResponse.json({ success: true, url: cldResult.url });
+        }
+      } catch (cldErr) {
+        console.warn("[Cloudinary Upload Warning]", cldErr);
+      }
+    }
+
+    // 2. Try Supabase Storage bucket 'product-media'
     try {
       const supabase = createAdminClient();
       const { data, error } = await supabase.storage

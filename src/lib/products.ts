@@ -49,7 +49,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0001-4000-8000-000000000001",
         product_id: "e1a2b3c4-0001-4000-8000-000000000001",
-        image_url: "/assets/products/8-can-gun-sculpture-v2.png",
+        image_url: PRODUCT_IMAGE_MAP["8-can-gun-sculpture"],
         alt_text: "8-Can Gun Sculpture, handcrafted decorative display piece",
         display_order: 1,
         is_primary: true,
@@ -91,7 +91,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0002-4000-8000-000000000002",
         product_id: "e1a2b3c4-0002-4000-8000-000000000002",
-        image_url: "/assets/products/14-can-gun-sculpture-v2.png",
+        image_url: PRODUCT_IMAGE_MAP["14-can-gun-sculpture"],
         alt_text: "14-Can Gun Sculpture, handcrafted decorative display piece",
         display_order: 1,
         is_primary: true,
@@ -133,7 +133,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0003-4000-8000-000000000003",
         product_id: "e1a2b3c4-0003-4000-8000-000000000003",
-        image_url: "/assets/products/12-can-heart-wall-art-v2.png",
+        image_url: PRODUCT_IMAGE_MAP["12-can-heart-wall-art"],
         alt_text: "12-Can Heart Wall Art, handcrafted decorative display piece",
         display_order: 1,
         is_primary: true,
@@ -176,7 +176,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0004-4000-8000-000000000004",
         product_id: "e1a2b3c4-0004-4000-8000-000000000004",
-        image_url: "/assets/products/27-can-heart-wall-art-v2.png",
+        image_url: PRODUCT_IMAGE_MAP["27-can-heart-wall-art"],
         alt_text: "27-Can Heart Wall Art, handcrafted decorative display piece",
         display_order: 1,
         is_primary: true,
@@ -213,7 +213,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0005-4000-8000-000000000005",
         product_id: "e1a2b3c4-0005-4000-8000-000000000005",
-        image_url: "/assets/products/30-can-guitar-wall-art-v1.png",
+        image_url: PRODUCT_IMAGE_MAP["30-can-guitar-wall-art"],
         alt_text: "30-Can Guitar Wall Art, handcrafted guitar-shaped wall sculpture made from 30 empty cans",
         display_order: 1,
         is_primary: true,
@@ -250,7 +250,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0006-4000-8000-000000000006",
         product_id: "e1a2b3c4-0006-4000-8000-000000000006",
-        image_url: "/assets/products/11-can-bow-wall-art-v1.png",
+        image_url: PRODUCT_IMAGE_MAP["11-can-bow-wall-art"],
         alt_text: "11-Can Bow Wall Art, handcrafted ribbon-bow wall piece made from 11 empty cans",
         display_order: 1,
         is_primary: true,
@@ -287,7 +287,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0007-4000-8000-000000000007",
         product_id: "e1a2b3c4-0007-4000-8000-000000000007",
-        image_url: "/assets/products/can-desk-station-v1.png",
+        image_url: PRODUCT_IMAGE_MAP["can-desk-station"],
         alt_text: "Can Desk Station, handcrafted pen and desk organizer made from a single empty can",
         display_order: 1,
         is_primary: true,
@@ -354,7 +354,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0008-4000-8000-000000000008",
         product_id: "e1a2b3c4-0008-4000-8000-000000000008",
-        image_url: "/assets/products/can-candle-diwali-special-v1.png",
+        image_url: PRODUCT_IMAGE_MAP["can-candle-diwali-special"],
         alt_text: "Can Candle - Diwali Special, handcrafted decorative can candles in four colors",
         display_order: 1,
         is_primary: true,
@@ -391,7 +391,7 @@ export const initialProductsFallback: Product[] = [
       {
         id: "a0000001-0009-4000-8000-000000000009",
         product_id: "e1a2b3c4-0009-4000-8000-000000000009",
-        image_url: "/assets/products/24-can-spider-wall-art-v1.png",
+        image_url: PRODUCT_IMAGE_MAP["24-can-spider-wall-art"],
         alt_text: "24-Can Spider Wall Art, handcrafted eight-legged wall sculpture made from 24 empty cans",
         display_order: 1,
         is_primary: true,
@@ -410,8 +410,16 @@ function attachFallbackImages(product: Product): Product {
   if (product.images && product.images.length > 0) {
     updatedImages = product.images.map((img) => ({
       ...img,
-      image_url: img.image_url?.endsWith(".jpg") ? imageUrl : img.image_url,
-      alt_text: img.image_url?.endsWith(".jpg") ? altText : img.alt_text,
+      image_url:
+        img.image_url?.startsWith("/assets/products/") ||
+        img.image_url?.endsWith(".jpg")
+          ? imageUrl
+          : img.image_url,
+      alt_text:
+        img.image_url?.startsWith("/assets/products/") ||
+        img.image_url?.endsWith(".jpg")
+          ? altText
+          : img.alt_text,
     }));
   } else {
     updatedImages = [

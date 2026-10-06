@@ -4,27 +4,28 @@ import React from "react";
 import Image from "next/image";
 import { siteContent } from "@/content/site";
 import { Instagram, ExternalLink, Play } from "lucide-react";
+import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
 
 export function InstagramStrip() {
   const posts = [
     {
       title: "De-tabbing & ultrasonic sanitization cycle",
-      image: "/assets/products/8-can-gun-sculpture-v2.png",
+      image: PRODUCT_IMAGE_MAP["8-can-gun-sculpture"],
       views: "14.2K",
     },
     {
       title: "Hand-riveting the 14-Can statement sculpture",
-      image: "/assets/products/14-can-gun-sculpture-v2.png",
+      image: PRODUCT_IMAGE_MAP["14-can-gun-sculpture"],
       views: "28.5K",
     },
     {
       title: "Stepped relief wall mounting for the 12-Can Heart",
-      image: "/assets/products/12-can-heart-wall-art-v2.png",
+      image: PRODUCT_IMAGE_MAP["12-can-heart-wall-art"],
       views: "42.1K",
     },
     {
       title: "Assembling the monumental 27-Can Mosaic Heart",
-      image: "/assets/products/27-can-heart-wall-art-v2.png",
+      image: PRODUCT_IMAGE_MAP["27-can-heart-wall-art"],
       views: "56.8K",
     },
   ];

@@ -134,7 +134,7 @@ insert into public.product_images (
 select
   'a0000001-0001-4000-8000-000000000001'::uuid,
   id,
-  '/assets/products/8-can-gun-sculpture-v2.png',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791203495/8-can-gun-sculpture-v2.png',
   '8-Can Gun Sculpture, handcrafted decorative display piece',
   1,
   true
@@ -157,7 +157,7 @@ insert into public.product_images (
 select
   'a0000001-0002-4000-8000-000000000002'::uuid,
   id,
-  '/assets/products/14-can-gun-sculpture-v2.png',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205370/14-can-gun-sculpture-v2.png',
   '14-Can Gun Sculpture, handcrafted decorative display piece',
   1,
   true
@@ -180,7 +180,7 @@ insert into public.product_images (
 select
   'a0000001-0003-4000-8000-000000000003'::uuid,
   id,
-  '/assets/products/12-can-heart-wall-art-v2.png',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205381/12-can-heart-wall-art-v2.png',
   '12-Can Heart Wall Art, handcrafted decorative display piece',
   1,
   true
@@ -203,7 +203,7 @@ insert into public.product_images (
 select
   'a0000001-0004-4000-8000-000000000004'::uuid,
   id,
-  '/assets/products/27-can-heart-wall-art-v2.png',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205435/27-can-heart-wall-art-v2.png',
   '27-Can Heart Wall Art, handcrafted decorative display piece',
   1,
   true
@@ -332,7 +332,7 @@ insert into public.product_images (id, product_id, image_url, alt_text, display_
 select
   'a0000001-0005-4000-8000-000000000005'::uuid,
   id,
-  '/assets/products/30-can-guitar-wall-art-v1.webp',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205372/30-can-guitar-wall-art-v1.png',
   'Handcrafted electric guitar wall sculpture constructed from thirty cleaned energy drink cans with decorative back illumination',
   1,
   true
@@ -343,7 +343,7 @@ insert into public.product_images (id, product_id, image_url, alt_text, display_
 select
   'a0000001-0006-4000-8000-000000000006'::uuid,
   id,
-  '/assets/products/11-can-bow-wall-art-v1.webp',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205372/11-can-bow-wall-art-v1.png',
   'Handcrafted ribbon bow wall art assembled from eleven cleaned pink energy drink cans',
   1,
   true
@@ -354,7 +354,7 @@ insert into public.product_images (id, product_id, image_url, alt_text, display_
 select
   'a0000001-0007-4000-8000-000000000007'::uuid,
   id,
-  '/assets/products/can-desk-station-v1.webp',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205385/can-desk-station-v1.png',
   'Handcrafted desk organiser and pen holder created from a single cleaned textured white energy drink can with sculpted rim',
   1,
   true
@@ -365,7 +365,7 @@ insert into public.product_images (id, product_id, image_url, alt_text, display_
 select
   'a0000001-0008-4000-8000-000000000008'::uuid,
   id,
-  '/assets/products/can-candle-diwali-special-v1.webp',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205439/can-candle-diwali-special-v1.png',
   'Set of four decorative candles set inside repurposed cut energy drink cans in metallic purple, black, pink, and teal colours',
   1,
   true
@@ -376,7 +376,7 @@ insert into public.product_images (id, product_id, image_url, alt_text, display_
 select
   'a0000001-0009-4000-8000-000000000009'::uuid,
   id,
-  '/assets/products/24-can-spider-wall-art-v1.webp',
+  'https://res.cloudinary.com/afpsv7zi/image/upload/v1791205379/24-can-spider-wall-art-v1.png',
   'Handcrafted corner wall sculpture in the shape of an eight-legged spider constructed from twenty-four cleaned colourful energy drink cans',
   1,
   true

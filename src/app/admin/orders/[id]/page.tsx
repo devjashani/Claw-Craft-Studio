@@ -10,6 +10,7 @@ import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { ClawButton } from "@/components/ui/claw-button";
+import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
 import {
   ArrowLeft,
   Printer,
@@ -386,7 +387,7 @@ export default function AdminOrderDetailPage() {
                             ? item.image_url.endsWith(".jpg")
                               ? item.image_url.replace(".jpg", "-v2.png")
                               : item.image_url
-                            : "/assets/products/8-can-gun-sculpture-v2.png"
+                            : PRODUCT_IMAGE_MAP["8-can-gun-sculpture"]
                         }
                         alt={item.product_title}
                         fill

@@ -1,13 +1,22 @@
 export const PRODUCT_IMAGE_MAP: Record<string, string> = {
-  "8-can-gun-sculpture": "/assets/products/8-can-gun-sculpture-v2.png",
-  "14-can-gun-sculpture": "/assets/products/14-can-gun-sculpture-v2.png",
-  "12-can-heart-wall-art": "/assets/products/12-can-heart-wall-art-v2.png",
-  "27-can-heart-wall-art": "/assets/products/27-can-heart-wall-art-v2.png",
-  "30-can-guitar-wall-art": "/assets/products/30-can-guitar-wall-art-v1.png",
-  "11-can-bow-wall-art": "/assets/products/11-can-bow-wall-art-v1.png",
-  "can-desk-station": "/assets/products/can-desk-station-v1.png",
-  "can-candle-diwali-special": "/assets/products/can-candle-diwali-special-v1.png",
-  "24-can-spider-wall-art": "/assets/products/24-can-spider-wall-art-v1.png",
+  "8-can-gun-sculpture":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791203495/8-can-gun-sculpture-v2.png",
+  "14-can-gun-sculpture":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205370/14-can-gun-sculpture-v2.png",
+  "12-can-heart-wall-art":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205381/12-can-heart-wall-art-v2.png",
+  "27-can-heart-wall-art":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205435/27-can-heart-wall-art-v2.png",
+  "30-can-guitar-wall-art":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205372/30-can-guitar-wall-art-v1.png",
+  "11-can-bow-wall-art":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205372/11-can-bow-wall-art-v1.png",
+  "can-desk-station":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205385/can-desk-station-v1.png",
+  "can-candle-diwali-special":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205439/can-candle-diwali-special-v1.png",
+  "24-can-spider-wall-art":
+    "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205379/24-can-spider-wall-art-v1.png",
 };
 
 export const PRODUCT_ALT_MAP: Record<string, string> = {

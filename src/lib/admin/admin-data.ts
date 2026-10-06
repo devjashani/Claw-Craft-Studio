@@ -3,6 +3,7 @@ import { initialProductsFallback } from "@/lib/products";
 import { Product, Order, OrderItem, Coupon } from "@/types/shop";
 import { OrderStatus, CustomRequestStatus } from "@/types/database.types";
 import { sendShippingUpdateEmail } from "@/lib/resend";
+import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
 
 export interface CustomRequestItem {
   id: string;
@@ -151,7 +152,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 229900,
             quantity: 1,
             total_price_paise: 229900,
-            image_url: "/assets/products/14-can-gun-sculpture-v2.png",
+            image_url: PRODUCT_IMAGE_MAP["14-can-gun-sculpture"],
           },
         ],
         "ord-demo-002": [
@@ -163,7 +164,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 129900,
             quantity: 1,
             total_price_paise: 129900,
-            image_url: "/assets/products/8-can-gun-sculpture-v2.png",
+            image_url: PRODUCT_IMAGE_MAP["8-can-gun-sculpture"],
           },
         ],
         "ord-demo-003": [
@@ -175,7 +176,7 @@ function getMockStore(): AdminMockStore {
             unit_price_paise: 489900,
             quantity: 1,
             total_price_paise: 489900,
-            image_url: "/assets/products/27-can-heart-wall-art-v2.png",
+            image_url: PRODUCT_IMAGE_MAP["27-can-heart-wall-art"],
           },
         ],
       },
@@ -219,7 +220,7 @@ function getMockStore(): AdminMockStore {
           estimated_size: "100cm x 60cm",
           budget_inr: "Rs 15,000 - 20,000",
           reference_image_urls: [
-            "/assets/products/14-can-gun-sculpture-v2.png",
+            PRODUCT_IMAGE_MAP["14-can-gun-sculpture"],
           ],
           status: "in_discussion",
           admin_notes:
@@ -287,6 +288,15 @@ export async function getAdminKPIs() {
     }
   } catch {
     // Fallback
+  }
+
+  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+    return {
+      totalRevenuePaise: 0,
+      totalOrdersCount: 0,
+      pendingShipmentsCount: 0,
+      lowStockCount: 0,
+    };
   }
 
   const store = getMockStore();
@@ -513,11 +523,15 @@ export async function getAdminOrders(statusFilter?: string): Promise<Order[]> {
       query = query.eq("status", statusFilter as OrderStatus);
     }
     const { data, error } = await query;
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as unknown as Order[];
     }
   } catch {
     // Fallback
+  }
+
+  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+    return [];
   }
 
   const store = getMockStore();
@@ -618,11 +632,15 @@ export async function getAdminCoupons(): Promise<Coupon[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as unknown as Coupon[];
     }
   } catch {
     // Fallback
+  }
+
+  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+    return [];
   }
 
   const store = getMockStore();
@@ -707,11 +725,15 @@ export async function getAdminCustomRequests(): Promise<CustomRequestItem[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as unknown as CustomRequestItem[];
     }
   } catch {
     // Fallback
+  }
+
+  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+    return [];
   }
 
   const store = getMockStore();

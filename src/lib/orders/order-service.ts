@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, sanitizeSupabaseUrl, sanitizeSupabaseKey } from "@/lib/supabase/admin";
 import { Order, OrderItem } from "@/types/shop";
 import { safeCompareTokens, generatePublicToken } from "@/lib/orders/order-crypto";
 
@@ -60,8 +60,8 @@ function getMemoryDemoStore(): Record<string, { order: Order; items: OrderItem[]
  * Checks if Supabase connection credentials are real and present
  */
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = sanitizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   if (!url || !key) return false;
   if (url.includes("placeholder") || key.includes("placeholder")) return false;
   return true;
