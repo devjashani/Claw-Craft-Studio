@@ -53,133 +53,8 @@ function getMockStore(): AdminMockStore {
     const demoOrderId = "ord-demo-001";
     global.__clawcraftAdminMockStore = {
       products: JSON.parse(JSON.stringify(initialProductsFallback)),
-      orders: [
-        {
-          id: demoOrderId,
-          order_number: "CC-2026-1042",
-          status: "paid",
-          customer_name: "Aarav Sharma",
-          customer_email: "aarav.sharma@example.com",
-          customer_phone: "9876543210",
-          shipping_address_line1: "Flat 402, Skyline Residency, Indiranagar",
-          shipping_address_line2: "100ft Road",
-          shipping_city: "Bengaluru",
-          shipping_state: "Karnataka",
-          shipping_pincode: "560038",
-          subtotal_paise: 229900,
-          discount_paise: 0,
-          shipping_fee_paise: 0,
-          total_paise: 229900,
-          coupon_id: null,
-          payment_method: "razorpay",
-          razorpay_order_id: "order_MOCK_1042",
-          razorpay_payment_id: "pay_MOCK_98765",
-          razorpay_signature: "mock_sig_1042",
-          courier_name: "Bluedart Express",
-          tracking_number: "BD88990012IN",
-          tracking_url: "https://www.bluedart.com/tracking?awb=BD88990012IN",
-          estimated_delivery_date: "2026-10-06",
-          admin_notes: "Special packaging with dual bubblewrap requested.",
-          created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-          updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-        },
-        {
-          id: "ord-demo-002",
-          order_number: "CC-2026-1043",
-          status: "processing",
-          customer_name: "Meera Patel",
-          customer_email: "meera.patel@example.com",
-          customer_phone: "9823456780",
-          shipping_address_line1: "B-12, Silver Oak Enclave, Vastrapur",
-          shipping_address_line2: null,
-          shipping_city: "Ahmedabad",
-          shipping_state: "Gujarat",
-          shipping_pincode: "380015",
-          subtotal_paise: 129900,
-          discount_paise: 12990,
-          shipping_fee_paise: 14900,
-          total_paise: 131810,
-          coupon_id: "coupon-claw10",
-          payment_method: "razorpay",
-          razorpay_order_id: "order_MOCK_1043",
-          razorpay_payment_id: "pay_MOCK_98766",
-          razorpay_signature: "mock_sig_1043",
-          courier_name: null,
-          tracking_number: null,
-          tracking_url: null,
-          estimated_delivery_date: null,
-          admin_notes: "Coupon CLAW10 used.",
-          created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-          updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-        },
-        {
-          id: "ord-demo-003",
-          order_number: "CC-2026-1044",
-          status: "shipped",
-          customer_name: "Rohan Verma",
-          customer_email: "rohan.v@example.com",
-          customer_phone: "9811223344",
-          shipping_address_line1: "15, Hauz Khas Village",
-          shipping_address_line2: "Near Deer Park",
-          shipping_city: "New Delhi",
-          shipping_state: "Delhi",
-          shipping_pincode: "110016",
-          subtotal_paise: 489900,
-          discount_paise: 0,
-          shipping_fee_paise: 0,
-          total_paise: 489900,
-          coupon_id: null,
-          payment_method: "razorpay",
-          razorpay_order_id: "order_MOCK_1044",
-          razorpay_payment_id: "pay_MOCK_98767",
-          razorpay_signature: "mock_sig_1044",
-          courier_name: "Delhivery Air",
-          tracking_number: "DEL123456789",
-          tracking_url: "https://www.delhivery.com/track/package/DEL123456789",
-          estimated_delivery_date: "2026-10-04",
-          admin_notes: "Heavy wooden internal brace added.",
-          created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-          updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-        },
-      ],
-      orderItems: {
-        [demoOrderId]: [
-          {
-            id: "item-001",
-            order_id: demoOrderId,
-            product_id: "e1a2b3c4-0002-4000-8000-000000000002",
-            product_title: "14-Can Gun Sculpture",
-            unit_price_paise: 229900,
-            quantity: 1,
-            total_price_paise: 229900,
-            image_url: PRODUCT_IMAGE_MAP["14-can-gun-sculpture"],
-          },
-        ],
-        "ord-demo-002": [
-          {
-            id: "item-002",
-            order_id: "ord-demo-002",
-            product_id: "e1a2b3c4-0001-4000-8000-000000000001",
-            product_title: "8-Can Gun Sculpture",
-            unit_price_paise: 129900,
-            quantity: 1,
-            total_price_paise: 129900,
-            image_url: PRODUCT_IMAGE_MAP["8-can-gun-sculpture"],
-          },
-        ],
-        "ord-demo-003": [
-          {
-            id: "item-003",
-            order_id: "ord-demo-003",
-            product_id: "e1a2b3c4-0004-4000-8000-000000000004",
-            product_title: "27-Can Heart Wall Art",
-            unit_price_paise: 489900,
-            quantity: 1,
-            total_price_paise: 489900,
-            image_url: PRODUCT_IMAGE_MAP["27-can-heart-wall-art"],
-          },
-        ],
-      },
+      orders: [],
+      orderItems: {},
       coupons: [
         {
           id: "coupon-claw10",
@@ -267,15 +142,16 @@ function getMockStore(): AdminMockStore {
 export async function getAdminKPIs() {
   try {
     const supabase = createAdminClient();
-    const { data: orders } = await supabase.from("orders").select("total_paise, status");
+    const { data: orders } = await supabase.from("orders").select("total_paise, status, payment_status");
     const { data: products } = await supabase.from("products").select("stock_count");
 
     if (orders && products) {
       const totalRevenuePaise = orders
-        .filter((o) => o.status === "paid" || o.status === "shipped" || o.status === "delivered")
+        .filter((o) => (o.payment_status || o.status) === "paid")
         .reduce((sum, o) => sum + (o.total_paise || 0), 0);
+
       const pendingShipments = orders.filter(
-        (o) => o.status === "paid" || o.status === "processing"
+        (o) => (o.status as string) === "pending" || o.status === "processing" || o.status === "pending_payment"
       ).length;
       const lowStockCount = products.filter((p) => p.stock_count <= 3).length;
 
@@ -290,29 +166,36 @@ export async function getAdminKPIs() {
     // Fallback
   }
 
-  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+  // If Supabase not reached, check session demo orders if any exist
+  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
+    const memStore = (global as any).__clawcraftDemoOrdersStore;
+    const unique = new Map<string, any>();
+    for (const item of Object.values(memStore) as any[]) {
+      if (item?.order?.id && !unique.has(item.order.id)) {
+        unique.set(item.order.id, item.order);
+      }
+    }
+    const orders = Array.from(unique.values());
+    const totalRevenuePaise = orders
+      .filter((o) => (o.payment_status || o.status) === "paid")
+      .reduce((sum, o) => sum + (o.total_paise || 0), 0);
+    const pendingShipmentsCount = orders.filter(
+      (o) => (o.status as string) === "pending" || o.status === "processing" || o.status === "pending_payment"
+    ).length;
+
     return {
-      totalRevenuePaise: 0,
-      totalOrdersCount: 0,
-      pendingShipmentsCount: 0,
-      lowStockCount: 0,
+      totalRevenuePaise,
+      totalOrdersCount: orders.length,
+      pendingShipmentsCount,
+      lowStockCount: initialProductsFallback.filter((p) => p.stock_count <= 3).length,
     };
   }
 
-  const store = getMockStore();
-  const totalRevenuePaise = store.orders
-    .filter((o) => o.status === "paid" || o.status === "shipped" || o.status === "delivered")
-    .reduce((sum, o) => sum + o.total_paise, 0);
-  const pendingShipmentsCount = store.orders.filter(
-    (o) => o.status === "paid" || o.status === "processing"
-  ).length;
-  const lowStockCount = store.products.filter((p) => p.stock_count <= 3).length;
-
   return {
-    totalRevenuePaise,
-    totalOrdersCount: store.orders.length,
-    pendingShipmentsCount,
-    lowStockCount,
+    totalRevenuePaise: 0,
+    totalOrdersCount: 0,
+    pendingShipmentsCount: 0,
+    lowStockCount: 0,
   };
 }
 
@@ -530,40 +413,58 @@ export async function getAdminOrders(statusFilter?: string): Promise<Order[]> {
     // Fallback
   }
 
-  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
-    return [];
+  // If Supabase not reached, check session demo orders if any exist
+  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
+    const memStore = (global as any).__clawcraftDemoOrdersStore;
+    const unique = new Map<string, Order>();
+    for (const item of Object.values(memStore) as any[]) {
+      if (item?.order?.id && !unique.has(item.order.id)) {
+        unique.set(item.order.id, item.order);
+      }
+    }
+    const list = Array.from(unique.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    if (statusFilter && statusFilter !== "all") {
+      return list.filter((o) => o.status === statusFilter);
+    }
+    return list;
   }
 
-  const store = getMockStore();
-  if (statusFilter && statusFilter !== "all") {
-    return store.orders.filter((o) => o.status === statusFilter);
-  }
-  return store.orders;
+  return [];
 }
 
 export async function getAdminOrderById(
   id: string
 ): Promise<{ order: Order | null; items: OrderItem[] }> {
-  let order: Order | null = null;
-  let items: OrderItem[] = [];
-
   try {
     const supabase = createAdminClient();
     const { data: dbOrder } = await supabase.from("orders").select("*").eq("id", id).single();
     if (dbOrder) {
-      order = dbOrder as unknown as Order;
+      const order = dbOrder as unknown as Order;
       const { data: dbItems } = await supabase.from("order_items").select("*").eq("order_id", id);
-      items = (dbItems as unknown as OrderItem[]) || [];
+      const items = (dbItems as unknown as OrderItem[]) || [];
       return { order, items };
     }
   } catch {
     // Fallback
   }
 
-  const store = getMockStore();
-  order = store.orders.find((o) => o.id === id) || null;
-  items = order ? store.orderItems[order.id] || [] : [];
-  return { order, items };
+  // Fallback to active demo order in session
+  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
+    const memStore = (global as any).__clawcraftDemoOrdersStore;
+    const found = memStore[id];
+    if (found) {
+      return found;
+    }
+    for (const entry of Object.values(memStore) as any[]) {
+      if (entry?.order?.id === id || entry?.order?.order_number === id) {
+        return entry;
+      }
+    }
+  }
+
+  return { order: null, items: [] };
 }
 
 export async function updateAdminOrder({

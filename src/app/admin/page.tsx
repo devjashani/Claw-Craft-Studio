@@ -1,11 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import {
-  getAdminKPIs,
-  getAdminOrders,
-  getAdminProducts,
-  getAdminCustomRequests,
-} from "@/lib/admin/admin-data";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { initialProductsFallback } from "@/lib/products";
 import { formatINR } from "@/lib/utils";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import {
@@ -21,18 +17,86 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
-  const [kpis, orders, products, customRequests] = await Promise.all([
-    getAdminKPIs(),
-    getAdminOrders(),
-    getAdminProducts(),
-    getAdminCustomRequests(),
-  ]);
+  let orders: any[] = [];
+  let products: any[] = [];
+  let customRequests: any[] = [];
 
+  try {
+    const supabase = createAdminClient();
+    const [ordersRes, productsRes, requestsRes] = await Promise.all([
+      supabase.from("orders").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("*").order("display_order", { ascending: true }),
+      supabase.from("custom_requests").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    if (ordersRes.data) {
+      orders = ordersRes.data;
+    }
+    if (productsRes.data && productsRes.data.length > 0) {
+      products = productsRes.data;
+    }
+    if (requestsRes.data) {
+      customRequests = requestsRes.data;
+    }
+  } catch (err) {
+    console.error("[Admin Dashboard] Supabase fetch error:", err);
+  }
+
+  // If DB was unreachable and demo orders were placed in local memory during session
+  if (orders.length === 0 && typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
+    const memStore = (global as any).__clawcraftDemoOrdersStore;
+    const unique = new Map<string, any>();
+    for (const item of Object.values(memStore) as any[]) {
+      if (item?.order?.id && !unique.has(item.order.id)) {
+        unique.set(item.order.id, item.order);
+      }
+    }
+    orders = Array.from(unique.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
+
+  // Use catalog fallback for product stock alerts if table is empty
+  if (products.length === 0) {
+    products = initialProductsFallback;
+  }
+
+  // 1. Total Revenue: Sum of total_amount from orders where payment_status = 'paid'
+  const paidOrders = orders.filter((o) => {
+    const pStatus = (o.payment_status || o.status || "").toLowerCase();
+    return pStatus === "paid";
+  });
+
+  const totalRevenuePaise = paidOrders.reduce((sum, o) => {
+    if (typeof o.total_paise === "number") return sum + o.total_paise;
+    if (typeof o.total_amount === "number") return sum + Math.round(o.total_amount * 100);
+    return sum;
+  }, 0);
+
+  // 2. Total Orders: Count of all rows in orders
+  const totalOrdersCount = orders.length;
+
+  // 3. Pending Shipments: Count where status = 'pending' or 'processing'
+  const pendingShipmentsCount = orders.filter((o) => {
+    const s = (o.status || "").toLowerCase();
+    return s === "pending" || s === "processing" || s === "pending_payment";
+  }).length;
+
+  // 4. Low Stock Alerts: Count products where stock <= 3
+  const lowStockProducts = products.filter((p) => {
+    const stock = typeof p.stock_count === "number" ? p.stock_count : (p.stock ?? 5);
+    return stock <= 3;
+  });
+  const lowStockCount = lowStockProducts.length;
+
+  // 5. Recent Orders: Fetch the 5 most recent orders (id, customer_name, city, total_amount, status)
   const recentOrders = orders.slice(0, 5);
-  const lowStockProducts = products.filter((p) => p.stock_count <= 3);
-  const pendingRequests = customRequests.filter((r) => r.status === "new" || r.status === "in_discussion");
+  const pendingRequests = customRequests.filter(
+    (r) => r.status === "new" || r.status === "in_discussion"
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -63,7 +127,7 @@ export default async function AdminDashboardPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-ash border border-subtle hover:border-steel text-bone transition-colors text-xs font-mono uppercase tracking-wider rounded"
           >
             <Package className="w-4 h-4 text-acid" />
-            <span>View Orders</span>
+            <span>View Orders ({totalOrdersCount})</span>
           </Link>
         </div>
       </div>
@@ -78,7 +142,7 @@ export default async function AdminDashboardPage() {
             <IndianRupee className="w-4 h-4 text-acid" />
           </div>
           <div className="mt-3 font-heading text-3xl text-bone">
-            {formatINR(kpis.totalRevenuePaise)}
+            {formatINR(totalRevenuePaise)}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-mono text-muted">
             <span className="text-acid">●</span>
@@ -94,7 +158,7 @@ export default async function AdminDashboardPage() {
             <Package className="w-4 h-4 text-steel" />
           </div>
           <div className="mt-3 font-heading text-3xl text-bone">
-            {kpis.totalOrdersCount}
+            {totalOrdersCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
             <span>Across all online payments & COD</span>
@@ -109,7 +173,7 @@ export default async function AdminDashboardPage() {
             <Truck className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-3 font-heading text-3xl text-amber-400">
-            {kpis.pendingShipmentsCount}
+            {pendingShipmentsCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
             <span>Awaiting courier pickup / AWB</span>
@@ -124,7 +188,7 @@ export default async function AdminDashboardPage() {
             <AlertTriangle className="w-4 h-4 text-blood" />
           </div>
           <div className="mt-3 font-heading text-3xl text-blood">
-            {kpis.lowStockCount}
+            {lowStockCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
             <span>Products with ≤ 3 ready units</span>
@@ -153,7 +217,7 @@ export default async function AdminDashboardPage() {
           <div className="bg-ash border border-subtle rounded overflow-hidden">
             {recentOrders.length === 0 ? (
               <div className="p-8 text-center text-muted text-xs font-mono">
-                No orders registered yet.
+                No orders registered yet. Real customer payments will appear here automatically.
               </div>
             ) : (
               <div className="divide-y divide-subtle/60">
@@ -164,11 +228,21 @@ export default async function AdminDashboardPage() {
                     shipped: "bg-amber-500/10 border-amber-500 text-amber-400",
                     delivered: "bg-emerald-500/10 border-emerald-500 text-emerald-400",
                     pending_payment: "bg-neutral-800 border-neutral-700 text-neutral-400",
+                    pending: "bg-amber-500/10 border-amber-500 text-amber-400",
                     cancelled: "bg-blood/10 border-blood text-blood",
                   };
 
+                  const currentStatus = ord.status || ord.payment_status || "pending";
                   const badgeClass =
-                    statusColors[ord.status] || "bg-subtle text-muted";
+                    statusColors[currentStatus] || "bg-subtle text-muted";
+
+                  const orderAmountPaise =
+                    typeof ord.total_paise === "number"
+                      ? ord.total_paise
+                      : Math.round((Number(ord.total_amount) || 0) * 100);
+
+                  const cityName = ord.shipping_city || ord.city || "India";
+                  const stateName = ord.shipping_state || ord.state || "";
 
                   return (
                     <div
@@ -178,26 +252,27 @@ export default async function AdminDashboardPage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2.5">
                           <span className="font-mono font-bold text-bone text-sm">
-                            {ord.order_number}
+                            {ord.order_number || ord.id.slice(0, 10)}
                           </span>
                           <span
                             className={`text-[10px] font-mono uppercase px-2 py-0.5 border rounded-sm ${badgeClass}`}
                           >
-                            {ord.status.replace("_", " ")}
+                            {String(currentStatus).replace("_", " ")}
                           </span>
                         </div>
                         <p className="text-xs text-muted">
-                          {ord.customer_name} • {ord.shipping_city}, {ord.shipping_state}
+                          {ord.customer_name || "Collector"} • {cityName}
+                          {stateName ? `, ${stateName}` : ""}
                         </p>
                       </div>
 
                       <div className="flex items-center justify-between sm:justify-end gap-4">
                         <div className="text-right">
                           <p className="font-mono text-sm text-acid font-bold">
-                            {formatINR(ord.total_paise)}
+                            {formatINR(orderAmountPaise)}
                           </p>
                           <p className="text-[10px] font-mono text-muted uppercase">
-                            {ord.payment_method}
+                            {ord.payment_method || "razorpay"}
                           </p>
                         </div>
 
@@ -255,7 +330,7 @@ export default async function AdminDashboardPage() {
 
                     <div className="text-right">
                       <span className="font-mono text-xs px-2 py-0.5 bg-blood/10 text-blood border border-blood/30 rounded font-bold">
-                        {p.stock_count} Left
+                        {p.stock_count ?? p.stock ?? 0} Left
                       </span>
                     </div>
                   </div>

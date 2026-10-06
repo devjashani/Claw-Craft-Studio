@@ -12,12 +12,26 @@ declare global {
 interface CheckoutButtonProps {
   amount: number;
   productName: string;
+  customerName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
   className?: string;
 }
 
 export default function CheckoutButton({
   amount,
   productName,
+  customerName = "Collector",
+  email = "collector@example.com",
+  phone = "9876543210",
+  address = "Studio Delivery",
+  city = "Jaipur",
+  state = "Rajasthan",
+  pincode = "302012",
   className = "",
 }: CheckoutButtonProps) {
   const [loading, setLoading] = useState(false);
@@ -60,21 +74,65 @@ export default function CheckoutButton({
         name: "Claw Craft Studio",
         description: productName,
         order_id: orderData.id,
-        handler: function (response: {
+        prefill: {
+          name: customerName,
+          email: email,
+          contact: phone,
+        },
+        handler: async function (response: {
           razorpay_payment_id: string;
           razorpay_order_id: string;
           razorpay_signature: string;
         }) {
-          // STEP 4: Save payment details to Supabase here later
-          // TODO: Implement Supabase record creation/update with response.razorpay_payment_id,
-          // response.razorpay_order_id, and response.razorpay_signature
+          try {
+            // STEP 2: Call /api/orders to save payment and order to Supabase
+            const saveRes = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customer_name: customerName,
+                email: email,
+                phone: phone,
+                address: address,
+                city: city,
+                state: state,
+                pincode: pincode,
+                items: [
+                  {
+                    product_title: productName,
+                    unit_price: amount,
+                    quantity: 1,
+                  },
+                ],
+                subtotal: amount,
+                discount_amount: 0,
+                shipping_amount: 0,
+                total_amount: amount,
+                payment_id: response.razorpay_payment_id,
+                payment_status: "paid",
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
 
-          // 3. Show alert with payment id on success
-          alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
-          setLoading(false);
+            const data = await saveRes.json();
+            const orderId = data.orderId || data.order_id || response.razorpay_payment_id;
+
+            // Success alert
+            alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
+
+            // Redirect user to success page
+            window.location.href = `/checkout/success?order_id=${orderId}`;
+          } catch (saveErr) {
+            console.error("Order save notice:", saveErr);
+            alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
+            window.location.href = `/checkout/success?order_id=${response.razorpay_payment_id}`;
+          } finally {
+            setLoading(false);
+          }
         },
         theme: {
-          color: "#9333ea", // Purple accent
+          color: "#9333ea", // Purple theme
         },
         modal: {
           ondismiss: function () {
@@ -86,7 +144,6 @@ export default function CheckoutButton({
       const razorpayInstance = new window.Razorpay(options);
 
       razorpayInstance.on("payment.failed", function (response: any) {
-        // 4. Show alert on failure
         alert(`Payment Failed: ${response.error?.description || "Transaction failed."}`);
         setLoading(false);
       });

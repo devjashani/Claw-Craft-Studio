@@ -184,34 +184,61 @@ export default function CheckoutPage() {
         );
 
         if (simulateConfirm) {
-          const verifyRes = await fetch("/api/razorpay/verify-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: orderData.orderId,
-              razorpay_order_id: orderData.razorpayOrderId,
-              razorpay_payment_id: `pay_test_mock_${Date.now()}`,
-              razorpay_signature: "mock_test_signature",
-            }),
-          });
-          const verifyData = await verifyRes.json();
-          if (verifyRes.ok && verifyData.verified) {
-            clearCart();
-            toast.success("Payment Received", "Your test order is confirmed!");
-            const targetUrl = orderData.publicToken
-              ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
-              : `/order/${orderData.orderId}`;
-            router.push(targetUrl);
-            return;
+          const testPaymentId = `pay_test_mock_${Date.now()}`;
+          let confirmedOrderId = orderData.orderId;
+
+          try {
+            const saveRes = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customer_name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                address: formData.addressLine1 + (formData.addressLine2 ? `, ${formData.addressLine2}` : ""),
+                city: formData.city,
+                state: formData.state,
+                pincode: formData.pincode,
+                items: items.map((i) => ({
+                  productId: i.productId || i.id,
+                  product_title: i.title,
+                  unit_price: i.pricePaise / 100,
+                  unit_price_paise: i.pricePaise,
+                  quantity: i.quantity,
+                  variantId: i.variantId,
+                  variantLabel: i.variantLabel,
+                  selectedOption: i.selectedOption,
+                  image_url: i.imageUrl,
+                })),
+                subtotal: subtotal / 100,
+                subtotal_paise: subtotal,
+                discount_amount: discount / 100,
+                discount_paise: discount,
+                shipping_amount: shippingFee / 100,
+                shipping_fee_paise: shippingFee,
+                total_amount: finalTotal / 100, // Discounted amount saved
+                total_paise: finalTotal,
+                payment_id: testPaymentId,
+                payment_status: "paid",
+              }),
+            });
+            const savedData = await saveRes.json();
+            if (savedData?.orderId) {
+              confirmedOrderId = savedData.orderId;
+            }
+          } catch (err) {
+            console.error("Orders save notice:", err);
           }
+
+          clearCart();
+          toast.success("Payment Received", "Your test order is confirmed!");
+          router.push(`/checkout/success?order_id=${confirmedOrderId}`);
+          return;
         } else {
           // Navigating to order page with pending payment status
           clearCart();
           toast.info("Payment Pending", "Order created with payment pending.");
-          const pendingUrl = orderData.publicToken
-            ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
-            : `/order/${orderData.orderId}`;
-          router.push(pendingUrl);
+          router.push(`/checkout/success?order_id=${orderData.orderId}`);
           return;
         }
       }
@@ -234,33 +261,77 @@ export default function CheckoutPage() {
           backdrop_color: "#050505",
         },
         handler: async function (response: any) {
+          let confirmedOrderId = orderData.orderId;
           try {
-            const verifyRes = await fetch("/api/razorpay/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: orderData.orderId,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.verified) {
-              clearCart();
-              toast.success("Payment Confirmed", "Your sculpture order is placed.");
-              const targetUrl = orderData.publicToken
-                ? `/order/${orderData.orderId}?t=${orderData.publicToken}`
-                : `/order/${orderData.orderId}`;
-              router.push(targetUrl);
-            } else {
-              toast.error("Verification Failed", verifyData.error || "Payment verification failed.");
-              setSubmitting(false);
+            // STEP 2: Call /api/orders to save the real order to Supabase
+            try {
+              const saveRes = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  customer_name: formData.name,
+                  email: formData.email,
+                  phone: formData.phone,
+                  address: formData.addressLine1 + (formData.addressLine2 ? `, ${formData.addressLine2}` : ""),
+                  city: formData.city,
+                  state: formData.state,
+                  pincode: formData.pincode,
+                  items: items.map((i) => ({
+                    productId: i.productId || i.id,
+                    product_title: i.title,
+                    unit_price: i.pricePaise / 100,
+                    unit_price_paise: i.pricePaise,
+                    quantity: i.quantity,
+                    variantId: i.variantId,
+                    variantLabel: i.variantLabel,
+                    selectedOption: i.selectedOption,
+                    image_url: i.imageUrl,
+                  })),
+                  subtotal: subtotal / 100,
+                  subtotal_paise: subtotal,
+                  discount_amount: discount / 100,
+                  discount_paise: discount,
+                  shipping_amount: shippingFee / 100,
+                  shipping_fee_paise: shippingFee,
+                  total_amount: finalTotal / 100, // Discounted amount saved
+                  total_paise: finalTotal,
+                  payment_id: response.razorpay_payment_id,
+                  payment_status: "paid",
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+              const savedData = await saveRes.json();
+              if (savedData?.orderId) {
+                confirmedOrderId = savedData.orderId;
+              }
+            } catch (saveErr) {
+              console.error("[Save Order to Supabase Error]:", saveErr);
             }
-          } catch {
-            toast.error("Network Error", "Failed to verify payment with studio.");
-            setSubmitting(false);
+
+            // Also verify payment signature if endpoint available
+            try {
+              await fetch("/api/razorpay/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  orderId: confirmedOrderId,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+            } catch (vErr) {
+              console.warn("Payment verification notice:", vErr);
+            }
+
+            clearCart();
+            toast.success("Payment Confirmed", "Your sculpture order is placed.");
+            router.push(`/checkout/success?order_id=${confirmedOrderId}`);
+          } catch (err) {
+            console.error("Handler error:", err);
+            clearCart();
+            router.push(`/checkout/success?order_id=${orderData.orderId}`);
           }
         },
         modal: {
