@@ -64,6 +64,7 @@ export function isSupabaseConfigured(): boolean {
   const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   if (!url || !key) return false;
   if (url.includes("placeholder") || key.includes("placeholder")) return false;
+  if (url.includes("mock-project") || key.includes("mock")) return false;
   return true;
 }
 
@@ -171,6 +172,81 @@ function getNextDemoOrderNumber(): string {
   return `CC-DEMO-${String(counter).padStart(4, "0")}`;
 }
 
+function generateDemoOrderResult(input: CreateOrderInput) {
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const demoId = `demo-${Date.now().toString(36)}-${randomSuffix}`;
+  const demoOrderNumber = getNextDemoOrderNumber();
+  const demoPublicToken = `demo_tok_${generatePublicToken()}`;
+  const nowIso = new Date().toISOString();
+
+  const isCod = input.paymentMethod === "cod";
+  const status = input.isPaid ? "paid" : isCod ? "processing" : "pending_payment";
+  const paymentStatus = input.isPaid ? "paid" : isCod ? "pending_payment" : "pending_payment";
+
+  const demoOrder: Order = {
+    id: demoId,
+    order_number: demoOrderNumber,
+    status,
+    customer_name: input.name.trim(),
+    customer_email: input.email.trim(),
+    customer_phone: input.phone.trim(),
+    shipping_address_line1: input.addressLine1.trim(),
+    shipping_address_line2: input.addressLine2 ? input.addressLine2.trim() : null,
+    shipping_city: input.city.trim(),
+    shipping_state: input.state.trim(),
+    shipping_pincode: input.pincode.trim(),
+    subtotal_paise: input.subtotalPaise,
+    discount_paise: input.discountPaise,
+    shipping_fee_paise: input.shippingFeePaise,
+    total_paise: input.totalPaise,
+    coupon_id: input.couponId || null,
+    payment_method: input.paymentMethod,
+    razorpay_order_id: input.razorpayOrderId || (isCod ? null : `order_demo_${randomSuffix}`),
+    razorpay_payment_id: input.razorpayPaymentId || (input.isPaid ? `pay_demo_${randomSuffix}` : null),
+    razorpay_signature: input.isPaid ? `sig_demo_${randomSuffix}` : null,
+    courier_name: null,
+    tracking_number: null,
+    tracking_id: null,
+    tracking_url: null,
+    estimated_delivery_date: null,
+    admin_notes: null,
+    public_token: demoPublicToken,
+    payment_status: paymentStatus,
+    payment_meta: input.paymentMeta || { method: input.paymentMethod, demo: true },
+    paid_at: input.isPaid ? nowIso : null,
+    email_sent_at: null,
+    created_at: nowIso,
+    updated_at: nowIso,
+    isDemo: true,
+  };
+
+  const demoItems: OrderItem[] = input.items.map((item, idx) => ({
+    id: `item-demo-${idx + 1}-${randomSuffix}`,
+    order_id: demoId,
+    product_id: item.productId,
+    product_title: item.title,
+    unit_price_paise: item.pricePaise,
+    quantity: item.quantity,
+    total_price_paise: item.pricePaise * item.quantity,
+    image_url: item.imageUrl || null,
+    variant_id: item.variantId || null,
+    variant_label: item.variantLabel || null,
+    selected_option: item.selectedOption || null,
+  }));
+
+  saveDemoOrder(demoOrder, demoItems);
+
+  return {
+    success: true,
+    order: demoOrder,
+    items: demoItems,
+    orderId: demoOrder.id,
+    orderNumber: demoOrder.order_number,
+    publicToken: demoOrder.public_token || undefined,
+    isDemo: true,
+  };
+}
+
 /**
  * Create Order in single data layer:
  * - Supabase adapter (production / connected)
@@ -204,79 +280,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{
       };
     }
 
-    // Demo Mode Adapter: Build real order from real cart & checkout inputs
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const demoId = `demo-${Date.now().toString(36)}-${randomSuffix}`;
-    const demoOrderNumber = getNextDemoOrderNumber();
-    const demoPublicToken = `demo_tok_${generatePublicToken()}`;
-    const nowIso = new Date().toISOString();
-
-    const isCod = input.paymentMethod === "cod";
-    const status = input.isPaid ? "paid" : isCod ? "processing" : "pending_payment";
-    const paymentStatus = input.isPaid ? "paid" : isCod ? "pending_payment" : "pending_payment";
-
-    const demoOrder: Order = {
-      id: demoId,
-      order_number: demoOrderNumber,
-      status,
-      customer_name: input.name.trim(),
-      customer_email: input.email.trim(),
-      customer_phone: input.phone.trim(),
-      shipping_address_line1: input.addressLine1.trim(),
-      shipping_address_line2: input.addressLine2 ? input.addressLine2.trim() : null,
-      shipping_city: input.city.trim(),
-      shipping_state: input.state.trim(),
-      shipping_pincode: input.pincode.trim(),
-      subtotal_paise: input.subtotalPaise,
-      discount_paise: input.discountPaise,
-      shipping_fee_paise: input.shippingFeePaise,
-      total_paise: input.totalPaise,
-      coupon_id: input.couponId || null,
-      payment_method: input.paymentMethod,
-      razorpay_order_id: input.razorpayOrderId || (isCod ? null : `order_demo_${randomSuffix}`),
-      razorpay_payment_id: input.razorpayPaymentId || (input.isPaid ? `pay_demo_${randomSuffix}` : null),
-      razorpay_signature: input.isPaid ? `sig_demo_${randomSuffix}` : null,
-      courier_name: null,
-      tracking_number: null,
-      tracking_id: null,
-      tracking_url: null,
-      estimated_delivery_date: null,
-      admin_notes: null,
-      public_token: demoPublicToken,
-      payment_status: paymentStatus,
-      payment_meta: input.paymentMeta || { method: input.paymentMethod, demo: true },
-      paid_at: input.isPaid ? nowIso : null,
-      email_sent_at: null,
-      created_at: nowIso,
-      updated_at: nowIso,
-      isDemo: true,
-    };
-
-    const demoItems: OrderItem[] = input.items.map((item, idx) => ({
-      id: `item-demo-${idx + 1}-${randomSuffix}`,
-      order_id: demoId,
-      product_id: item.productId,
-      product_title: item.title,
-      unit_price_paise: item.pricePaise,
-      quantity: item.quantity,
-      total_price_paise: item.pricePaise * item.quantity,
-      image_url: item.imageUrl || null,
-      variant_id: item.variantId || null,
-      variant_label: item.variantLabel || null,
-      selected_option: item.selectedOption || null,
-    }));
-
-    saveDemoOrder(demoOrder, demoItems);
-
-    return {
-      success: true,
-      order: demoOrder,
-      items: demoItems,
-      orderId: demoOrder.id,
-      orderNumber: demoOrder.order_number,
-      publicToken: demoOrder.public_token || undefined,
-      isDemo: true,
-    };
+    // Demo Mode Adapter
+    return generateDemoOrderResult(input);
   }
 
   // Supabase Adapter
@@ -320,6 +325,10 @@ export async function createOrder(input: CreateOrderInput): Promise<{
 
     if (orderError || !dbOrder) {
       console.error("[Supabase createOrder Error]", orderError);
+      if (process.env.NODE_ENV !== "production" || process.env.DEMO_MODE === "true") {
+        console.warn("[createOrder] Supabase insert failed in dev, falling back to Demo Mode:", orderError?.message);
+        return generateDemoOrderResult(input);
+      }
       return { success: false, error: orderError?.message || "Failed to create order in database." };
     }
 
@@ -359,7 +368,11 @@ export async function createOrder(input: CreateOrderInput): Promise<{
     };
   } catch (err: any) {
     console.error("[createOrder Exception]", err);
-    return { success: false, error: err.message || "Failed to process order." };
+    if (process.env.NODE_ENV !== "production" || process.env.DEMO_MODE === "true") {
+      console.warn("[createOrder] Supabase connection failed in dev, falling back to Demo Mode:", err?.message);
+      return generateDemoOrderResult(input);
+    }
+    return { success: false, error: err?.message || "Failed to process order." };
   }
 }
 
