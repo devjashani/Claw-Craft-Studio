@@ -4,7 +4,6 @@ import { HeroSection } from "@/components/home/hero-section";
 import { Marquee } from "@/components/ui/marquee";
 import { FeaturedProducts } from "@/components/home/featured-products";
 import { DiwaliBanner } from "@/components/home/diwali-banner";
-import { NewDrops } from "@/components/home/new-drops";
 import { CraftStory } from "@/components/home/craft-story";
 import { CustomBuildsBanner } from "@/components/home/custom-builds-banner";
 import { InstagramStrip } from "@/components/home/instagram-strip";
@@ -42,9 +41,6 @@ export default async function HomePage() {
 
       {/* Slim Diwali Special Banner */}
       <DiwaliBanner />
-
-      {/* New Drops Row (5 New Products) */}
-      <NewDrops products={products} />
 
       {/* 5. How It's Made: 4-Step Craft Story with Slash Transitions */}
       <CraftStory />
