@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { getProducts, getProductImageUrl } from "@/lib/products";
 import { checkoutFormSchema } from "@/lib/validation/checkout";
@@ -161,7 +162,19 @@ export async function POST(req: NextRequest) {
     // 6. Check if COD is requested
     const isCod = data.paymentMethod === "cod";
 
-    // 7. Create Order via unified data layer
+    // 7. Extract authenticated user session server-side (NEVER from client body)
+    let authenticatedUserId: string | null = null;
+    try {
+      const userSupabase = createClient();
+      const { data: authData } = await userSupabase.auth.getUser();
+      if (authData?.user?.id) {
+        authenticatedUserId = authData.user.id;
+      }
+    } catch {
+      // Guest order
+    }
+
+    // 8. Create Order via unified data layer
     const orderItemsForCreate: CreateOrderInputItem[] = orderItemsToInsert.map((item, idx) => ({
       id: `item-${idx}`,
       productId: item.product_id,
@@ -192,6 +205,7 @@ export async function POST(req: NextRequest) {
       totalPaise: calculatedTotalPaise,
       couponId: validCouponId,
       couponCode: data.couponCode,
+      userId: authenticatedUserId,
     });
 
     if (!orderResult.success || !orderResult.order) {

@@ -5,11 +5,15 @@ import {
   deleteAdminCoupon,
   toggleCouponActive,
 } from "@/lib/admin/admin-data";
+import { assertAdminApi } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const coupons = await getAdminCoupons();
     return NextResponse.json({ coupons });
   } catch (error) {
@@ -20,6 +24,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     if (!body.code || typeof body.discount_value !== "number") {
       return NextResponse.json(
@@ -38,6 +45,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     const { id, is_active } = body;
     if (!id || typeof is_active !== "boolean") {
@@ -54,6 +64,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) {

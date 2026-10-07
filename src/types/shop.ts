@@ -25,6 +25,8 @@ export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type Coupon = Database["public"]["Tables"]["coupons"]["Row"];
 export type CustomRequest = Database["public"]["Tables"]["custom_requests"]["Row"];
 export type SiteSetting = Database["public"]["Tables"]["site_settings"]["Row"];
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Address = Database["public"]["Tables"]["addresses"]["Row"];
 
 export type ProductWithImages = Product;
 

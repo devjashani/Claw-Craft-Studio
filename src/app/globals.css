@@ -158,3 +158,79 @@ body {
   }
 }
 
+/* Avatar Glowing Ring & Pulsing Shadow */
+@keyframes avatar-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes avatar-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(184, 255, 31, 0.35), inset 0 0 4px rgba(184, 255, 31, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(184, 255, 31, 0.65), inset 0 0 8px rgba(184, 255, 31, 0.4);
+  }
+}
+
+.avatar-glowing-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(184, 255, 31, 0.35);
+  animation: avatar-glow-pulse 4s ease-in-out infinite;
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.avatar-glowing-ring:hover,
+.avatar-glowing-ring:focus-visible {
+  box-shadow: 0 0 24px rgba(184, 255, 31, 0.85), inset 0 0 10px rgba(184, 255, 31, 0.5);
+  transform: scale(1.04);
+}
+
+.avatar-glowing-ring::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, #B8FF1F, #050505 35%, #B8FF1F 50%, #050505 85%, #B8FF1F);
+  animation: avatar-spin 6s linear infinite;
+  z-index: 1;
+}
+
+.avatar-glowing-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background-color: var(--void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-glowing-ring {
+    animation: none !important;
+    box-shadow: 0 0 12px rgba(184, 255, 31, 0.45) !important;
+  }
+  .avatar-glowing-ring::before {
+    animation: none !important;
+    transform: none !important;
+    background: #B8FF1F !important;
+  }
+}

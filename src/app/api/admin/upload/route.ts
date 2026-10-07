@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadBufferToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
+import { assertAdminApi } from "@/lib/auth/admin-auth";
 import { writeFile } from "fs/promises";
 import path from "path";
 
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

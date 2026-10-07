@@ -19,6 +19,7 @@ export const PRODUCT_IMAGE_MAP: Record<string, string> = {
     "https://res.cloudinary.com/afpsv7zi/image/upload/v1791205379/24-can-spider-wall-art-v1.png",
 };
 
+
 export const PRODUCT_ALT_MAP: Record<string, string> = {
   "8-can-gun-sculpture":
     "8-Can Gun Sculpture, handcrafted decorative display piece",

@@ -36,6 +36,7 @@ export interface CreateOrderInput {
   razorpayOrderId?: string | null;
   razorpayPaymentId?: string | null;
   paymentMeta?: Record<string, unknown>;
+  userId?: string | null;
 }
 
 export interface OrderLookupResult {
@@ -215,6 +216,7 @@ function generateDemoOrderResult(input: CreateOrderInput) {
     payment_meta: input.paymentMeta || { method: input.paymentMethod, demo: true },
     paid_at: input.isPaid ? nowIso : null,
     email_sent_at: null,
+    user_id: input.userId || null,
     created_at: nowIso,
     updated_at: nowIso,
     isDemo: true,
@@ -315,6 +317,7 @@ export async function createOrder(input: CreateOrderInput): Promise<{
       payment_status: initialPaymentStatus,
       payment_meta: input.paymentMeta || {},
       paid_at: input.isPaid ? nowIso : null,
+      user_id: input.userId || null,
     };
 
     const { data: dbOrder, error: orderError } = await supabase
@@ -449,9 +452,15 @@ export function verifyOrderAccess(
   order: Order,
   token?: string | null,
   phone?: string | null,
-  isAdmin?: boolean
+  isAdmin?: boolean,
+  userId?: string | null
 ): { allowed: boolean; reason?: string } {
   if (isAdmin) return { allowed: true };
+
+  // Check if authenticated user owns the order
+  if (userId && (order as any).user_id && (order as any).user_id === userId) {
+    return { allowed: true };
+  }
 
   // Check constant-time token comparison
   if (token && order.public_token && safeCompareTokens(order.public_token, token)) {

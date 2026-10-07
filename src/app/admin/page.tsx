@@ -16,10 +16,17 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+import { getAdminSession } from "@/lib/auth/admin-auth";
+import { redirect } from "next/navigation";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
+  const session = await getAdminSession();
+  if (!session) {
+    redirect("/admin/login");
+  }
   let orders: any[] = [];
   let products: any[] = [];
   let customRequests: any[] = [];

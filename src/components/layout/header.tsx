@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ShoppingBag, Menu, X } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { siteContent } from "@/content/site";
+import { HeaderAccount } from "@/components/layout/header-account";
 import { cn } from "@/lib/utils";
 
 export function Header() {
@@ -86,8 +87,11 @@ export function Header() {
           })}
         </nav>
 
-        {/* Right Action Icons (Cart & Mobile Menu) */}
+        {/* Right Action Icons (Account, Cart & Mobile Menu) */}
         <div className="flex items-center gap-3">
+          {/* Customer Account Avatar / Login Button */}
+          <HeaderAccount />
+
           {/* Cart Button with Tactical Add Shake */}
           <button
             onClick={openCart}
@@ -148,7 +152,7 @@ export function Header() {
       {/* Mobile Drawer Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-b border-steel/20 bg-void/95 backdrop-blur-xl px-4 py-6 shadow-2xl animate-in slide-in-from-top-4 duration-200">
-          <nav className="flex flex-col gap-4">
+          <nav className="flex flex-col gap-4 mb-4">
             {siteContent.navigation.map((item) => (
               <Link
                 key={item.href}
@@ -161,6 +165,12 @@ export function Header() {
               </Link>
             ))}
           </nav>
+
+          {/* Mobile Account Section */}
+          <HeaderAccount
+            isMobileDrawer
+            onNavigate={() => setIsMobileMenuOpen(false)}
+          />
         </div>
       )}
     </header>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME } from "@/lib/auth/admin-auth";
+import { ADMIN_COOKIE_NAME, isAllowedAdminEmail } from "@/lib/auth/admin-auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -61,11 +61,14 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY?.includes("mock");
 
     const isStudioAdminMatch =
-      email.toLowerCase().trim() === "studio@clawcraft.in" ||
-      email.toLowerCase().trim() === "admin@clawcraft.in" ||
-      (isMockProject && password.length >= 6);
+      (process.env.NODE_ENV !== "production" || isMockProject) &&
+      email.trim().toLowerCase() === "admin@clawcraft.in" &&
+      password === (process.env.ADMIN_PASSWORD || "clawcraft2026");
 
-    if (supabaseSuccess || isStudioAdminMatch) {
+    // Verify that the email is in the admin allow-list
+    const isAllowed = isAllowedAdminEmail(authenticatedEmail);
+
+    if ((supabaseSuccess && isAllowed) || isStudioAdminMatch) {
       const response = NextResponse.json({
         success: true,
         user: { email: authenticatedEmail, role: "artisan_admin" },
@@ -82,6 +85,13 @@ export async function POST(req: NextRequest) {
       });
 
       return response;
+    }
+
+    if (supabaseSuccess && !isAllowed) {
+      return NextResponse.json(
+        { error: "Access denied. Customer accounts do not have administrator permissions." },
+        { status: 403 }
+      );
     }
 
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { generatePublicToken } from "@/lib/orders/order-crypto";
 import { saveDemoOrder } from "@/lib/orders/order-service";
 import { Order, OrderItem } from "@/types/shop";
@@ -9,6 +10,18 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Resolve authenticated user from session server-side (NEVER from client body)
+    let authenticatedUserId: string | null = null;
+    try {
+      const userSupabase = createClient();
+      const { data: authData } = await userSupabase.auth.getUser();
+      if (authData?.user?.id) {
+        authenticatedUserId = authData.user.id;
+      }
+    } catch {
+      // Guest order
+    }
 
     // 1. Extract Customer & Shipping Information
     const customerName = (body.customer_name || body.name || "Collector").trim();
@@ -98,6 +111,7 @@ export async function POST(req: NextRequest) {
         paid_at: nowIso,
       },
       paid_at: isPaid ? nowIso : null,
+      user_id: authenticatedUserId,
       created_at: nowIso,
       updated_at: nowIso,
     };
@@ -140,6 +154,7 @@ export async function POST(req: NextRequest) {
           razorpay_payment_id: paymentId,
           payment_status: paymentStatus,
           status: orderStatus,
+          user_id: authenticatedUserId,
         };
         const retryRes = await supabase.from("orders").insert(altPayload).select().single();
         if (retryRes.data) {

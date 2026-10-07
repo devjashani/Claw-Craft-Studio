@@ -1,3 +1,6 @@
+/**
+ * Simple in-memory sliding-window rate limiter for server routes
+ */
 interface RateLimitRecord {
   count: number;
   resetAt: number;
@@ -5,42 +8,35 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>();
 
-/**
- * Clean up old keys periodically
- */
-setInterval(() => {
-  const now = Date.now();
-  rateLimitStore.forEach((record, key) => {
-    if (record.resetAt <= now) {
-      rateLimitStore.delete(key);
-    }
-  });
-}, 60000);
-
-/**
- * Simple in-memory sliding window rate limiter
- */
 export function checkRateLimit(
-  key: string,
-  limit = 20,
-  windowMs = 60000
-): { success: boolean; remaining: number; resetAt: number } {
+  identifier: string,
+  limit: number = 5,
+  windowMs: number = 60 * 1000
+): { success: boolean; remaining: number; resetInSec: number } {
   const now = Date.now();
-  const record = rateLimitStore.get(key);
+  const record = rateLimitStore.get(identifier);
 
-  if (!record || record.resetAt <= now) {
-    const newRecord: RateLimitRecord = {
+  // Clean expired
+  if (!record || now > record.resetAt) {
+    rateLimitStore.set(identifier, {
       count: 1,
       resetAt: now + windowMs,
-    };
-    rateLimitStore.set(key, newRecord);
-    return { success: true, remaining: limit - 1, resetAt: newRecord.resetAt };
+    });
+    return { success: true, remaining: limit - 1, resetInSec: Math.ceil(windowMs / 1000) };
   }
 
   if (record.count >= limit) {
-    return { success: false, remaining: 0, resetAt: record.resetAt };
+    return {
+      success: false,
+      remaining: 0,
+      resetInSec: Math.max(1, Math.ceil((record.resetAt - now) / 1000)),
+    };
   }
 
   record.count += 1;
-  return { success: true, remaining: limit - record.count, resetAt: record.resetAt };
+  return {
+    success: true,
+    remaining: limit - record.count,
+    resetInSec: Math.ceil((record.resetAt - now) / 1000),
+  };
 }

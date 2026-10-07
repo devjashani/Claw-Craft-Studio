@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminOrderById, updateAdminOrder } from "@/lib/admin/admin-data";
+import { assertAdminApi } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,9 @@ interface RouteParams {
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const data = await getAdminOrderById(params.id);
     if (!data.order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -22,6 +26,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     const updated = await updateAdminOrder({
       id: params.id,

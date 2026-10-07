@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/auth/admin-auth";
 import { buildSlipPdf } from "@/lib/pdf/order-slip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const adminSession = await getAdminSession();
     const isAdmin = Boolean(adminSession);
 
+    // Check user session
+    let userId: string | null = null;
+    try {
+      const userSupabase = createClient();
+      const { data: authData } = await userSupabase.auth.getUser();
+      userId = authData?.user?.id || null;
+    } catch {
+      // Unauthenticated visitor
+    }
+
     // Fetch order from data layer
     const { order, items, isDemo } = await getOrder(id);
 
@@ -40,10 +51,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     order.items = items;
     order.isDemo = isDemo;
 
-    // Verify access control
-    const access = verifyOrderAccess(order, token, phone, isAdmin);
+    // Verify access control (admin, token, phone, or owner user_id)
+    const access = verifyOrderAccess(order, token, phone, isAdmin, userId);
     if (!access.allowed) {
-      return new NextResponse("Access forbidden. Valid token or registered phone required.", {
+      return new NextResponse("Access forbidden. Valid token, phone, or account required.", {
         status: 403,
       });
     }

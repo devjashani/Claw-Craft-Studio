@@ -6,6 +6,8 @@ import Link from "next/link";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/use-cart";
+import { useAuth } from "@/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import { formatINR } from "@/lib/utils";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
@@ -22,6 +24,7 @@ import {
   ArrowLeft,
   Tag,
   AlertCircle,
+  User,
 } from "lucide-react";
 
 declare global {
@@ -66,6 +69,41 @@ export default function CheckoutPage() {
   const finalTotal = Math.max(0, subtotal - discount + shippingFee);
 
   const enableCod = process.env.NEXT_PUBLIC_ENABLE_COD === "true";
+  const { user, profile, isAuthenticated } = useAuth();
+
+  // Prefill coordinates for authenticated collectors with saved default address
+  useEffect(() => {
+    async function prefillUserCoordinates() {
+      if (!user) return;
+      const supabase = createClient();
+      let defaultAddr: any = null;
+      try {
+        const { data } = await supabase
+          .from("addresses")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("is_default", true)
+          .maybeSingle();
+        defaultAddr = data;
+      } catch {
+        // Fallback silently
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || defaultAddr?.full_name || profile?.display_name || user.user_metadata?.full_name || "",
+        email: prev.email || user.email || "",
+        phone: prev.phone || defaultAddr?.phone || profile?.phone || "",
+        addressLine1: prev.addressLine1 || defaultAddr?.line1 || "",
+        addressLine2: prev.addressLine2 || defaultAddr?.line2 || "",
+        city: prev.city || defaultAddr?.city || profile?.city || "",
+        state: prev.state || defaultAddr?.state || "",
+        pincode: prev.pincode || defaultAddr?.pin || "",
+      }));
+    }
+
+    prefillUserCoordinates();
+  }, [user, profile]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -391,7 +429,44 @@ export default function CheckoutPage() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleCheckoutSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div>
+            {/* Guest vs Logged-In Soft Banner */}
+            {!isAuthenticated ? (
+              <div className="mb-8 p-4 bg-ash/60 border border-steel/20 rounded-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs backdrop-blur-sm">
+                <div className="flex items-center gap-2.5 text-steel">
+                  <User className="w-4 h-4 text-acid shrink-0" />
+                  <span>
+                    Have a collector account? <strong className="text-bone">Log in for faster checkout</strong> (optional).
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/login?next=/checkout"
+                    className="font-mono text-xs text-acid hover:underline uppercase tracking-wider font-bold"
+                  >
+                    Log In &rarr;
+                  </Link>
+                  <span className="text-steel/30">|</span>
+                  <span className="font-mono text-[11px] text-steel uppercase">
+                    Continue as Guest
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-8 p-3.5 bg-acid/10 border border-acid/30 rounded-sm flex items-center justify-between text-xs font-mono text-steel">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-acid shrink-0" />
+                  <span>
+                    Checking out as <strong className="text-acid">{user?.email}</strong> (Coordinates Prefilled)
+                  </span>
+                </span>
+                <Link href="/account?tab=addresses" className="text-bone hover:text-acid underline text-[11px]">
+                  Manage Addresses
+                </Link>
+              </div>
+            )}
+
+            <form onSubmit={handleCheckoutSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Left Column: Customer & Delivery Details */}
             <div className="lg:col-span-7 space-y-8">
               {/* Customer Contact */}
@@ -785,6 +860,7 @@ export default function CheckoutPage() {
               </div>
             </div>
           </form>
+          </div>
         )}
       </div>
     </div>

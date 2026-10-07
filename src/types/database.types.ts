@@ -259,6 +259,7 @@ export interface Database {
           estimated_delivery_date: string | null;
           admin_notes: string | null;
           public_token?: string | null;
+          user_id?: string | null;
           payment_status?: string | null;
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
@@ -294,6 +295,7 @@ export interface Database {
           estimated_delivery_date?: string | null;
           admin_notes?: string | null;
           public_token?: string;
+          user_id?: string | null;
           payment_status?: string;
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
@@ -329,6 +331,7 @@ export interface Database {
           estimated_delivery_date?: string | null;
           admin_notes?: string | null;
           public_token?: string;
+          user_id?: string | null;
           payment_status?: string;
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
@@ -443,6 +446,87 @@ export interface Database {
           value?: Json;
           description?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          display_name: string | null;
+          phone: string | null;
+          city: string | null;
+          avatar_url: string | null;
+          hooked_since: string | null;
+          favourite_flavour: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          display_name?: string | null;
+          phone?: string | null;
+          city?: string | null;
+          avatar_url?: string | null;
+          hooked_since?: string | null;
+          favourite_flavour?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string | null;
+          phone?: string | null;
+          city?: string | null;
+          avatar_url?: string | null;
+          hooked_since?: string | null;
+          favourite_flavour?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      addresses: {
+        Row: {
+          id: string;
+          user_id: string;
+          label: string;
+          full_name: string;
+          phone: string;
+          line1: string;
+          line2: string | null;
+          pin: string;
+          city: string;
+          state: string;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          label?: string;
+          full_name: string;
+          phone: string;
+          line1: string;
+          line2?: string | null;
+          pin: string;
+          city: string;
+          state: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          label?: string;
+          full_name?: string;
+          phone?: string;
+          line1?: string;
+          line2?: string | null;
+          pin?: string;
+          city?: string;
+          state?: string;
+          is_default?: boolean;
+          created_at?: string;
         };
         Relationships: [];
       };

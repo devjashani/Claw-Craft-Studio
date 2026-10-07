@@ -3,11 +3,15 @@ import {
   getAdminCustomRequests,
   updateAdminCustomRequestStatus,
 } from "@/lib/admin/admin-data";
+import { assertAdminApi } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const requests = await getAdminCustomRequests();
     return NextResponse.json({ requests });
   } catch (error) {
@@ -18,6 +22,9 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     const { id, status, admin_notes } = body;
     if (!id || !status) {

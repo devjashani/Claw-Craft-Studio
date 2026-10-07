@@ -5,11 +5,15 @@ import {
   updateProductStock,
   toggleProductActive,
 } from "@/lib/admin/admin-data";
+import { assertAdminApi } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const products = await getAdminProducts();
     return NextResponse.json({ products });
   } catch (error) {
@@ -20,6 +24,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
 
     if (!body.title || typeof body.price_paise !== "number") {
@@ -39,6 +46,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi();
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     const { id, stock_count, is_active } = body;
 
