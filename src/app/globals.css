@@ -146,15 +146,17 @@ body {
 
 /* Hide default cursor on desktop when custom cursor is active */
 @media (hover: hover) and (pointer: fine) {
-  .has-custom-cursor {
-    cursor: none;
-  }
+  .has-custom-cursor,
   .has-custom-cursor a,
   .has-custom-cursor button,
   .has-custom-cursor input,
   .has-custom-cursor textarea,
-  .has-custom-cursor select {
-    cursor: none;
+  .has-custom-cursor select,
+  .has-custom-cursor label,
+  .has-custom-cursor [role="button"],
+  .has-custom-cursor [data-cursor="pointer"],
+  .has-custom-cursor .cursor-pointer {
+    cursor: none !important;
   }
 }
 

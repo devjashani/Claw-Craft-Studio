@@ -138,9 +138,16 @@ export function HeroCanvasParticles() {
         grad.addColorStop(0.6, `rgba(184, 255, 31, ${p.alpha * 0.4})`);
         grad.addColorStop(1, `rgba(201, 205, 210, ${p.alpha * 0.15})`);
 
+        // Soft halo aura
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius * 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(184, 255, 31, ${p.alpha * 0.18})`;
+        ctx.fill();
+
+        // Droplet body with radial gradient specular highlight
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = grad;
-        ctx.shadowColor = "rgba(184, 255, 31, 0.4)";
-        ctx.shadowBlur = 6;
         ctx.fill();
         ctx.restore();
       }

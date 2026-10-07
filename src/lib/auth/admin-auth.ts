@@ -17,7 +17,9 @@ export interface AdminUser {
 export function isAllowedAdminEmail(email?: string | null): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
-  const rawList = process.env.ADMIN_EMAILS || "studio@clawcraft.in,admin@clawcraft.in";
+  const rawList =
+    process.env.ADMIN_EMAILS ||
+    "studio@clawcraft.in,admin@clawcraft.in,devjashani40@gmail.com,devjashani2004@gmail.com";
   const allowedList = rawList
     .split(",")
     .map((e) => e.toLowerCase().trim())

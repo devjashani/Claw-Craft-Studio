@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
-import { motion, useMotionValue, useSpring, useReducedMotion } from "framer-motion";
+import React, { useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 interface MagneticButtonProps {
@@ -18,60 +17,122 @@ export function MagneticButton({
   strength = 0.25,
 }: MagneticButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
-  const [canHover, setCanHover] = useState(false);
+  const rectRef = useRef<DOMRect | null>(null);
+  const targetPos = useRef({ x: 0, y: 0 });
+  const currentPos = useRef({ x: 0, y: 0 });
+  const isHovered = useRef(false);
+  const isRafActive = useRef(false);
+  const rafId = useRef(0);
+  const lastTime = useRef(0);
 
-  useEffect(() => {
-    // Only enable magnetic pull on precision pointer devices (desktop mouse/trackpad)
-    const mediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
-    setCanHover(mediaQuery.matches);
-
-    const handler = (e: MediaQueryListEvent) => setCanHover(e.matches);
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
+  const updateRect = useCallback(() => {
+    if (ref.current) {
+      rectRef.current = ref.current.getBoundingClientRect();
+    }
   }, []);
 
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
+  useEffect(() => {
+    // Only enable magnetic pull on desktop pointer devices
+    const isCoarse = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (isCoarse || prefersReducedMotion) return;
 
-  const springConfig = { damping: 15, stiffness: 180, mass: 0.1 };
-  const springX = useSpring(x, springConfig);
-  const springY = useSpring(y, springConfig);
+    // Refresh cached rect on window scroll & resize while hovered
+    const handleWindowChange = () => {
+      if (isHovered.current) {
+        updateRect();
+      }
+    };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!canHover || shouldReduceMotion || !ref.current) return;
-    const { clientX, clientY } = e;
-    const { left, top, width, height } = ref.current.getBoundingClientRect();
-    const centerX = left + width / 2;
-    const centerY = top + height / 2;
-    x.set((clientX - centerX) * strength);
-    y.set((clientY - centerY) * strength);
-  };
+    window.addEventListener("scroll", handleWindowChange, { passive: true });
+    window.addEventListener("resize", handleWindowChange, { passive: true });
 
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
+    return () => {
+      window.removeEventListener("scroll", handleWindowChange);
+      window.removeEventListener("resize", handleWindowChange);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  }, [updateRect]);
 
-  if (!canHover || shouldReduceMotion) {
-    return (
-      <div className={cn("inline-block", className)} onClick={onClick}>
-        {children}
-      </div>
+  const animate = (time: number) => {
+    if (!isRafActive.current) return;
+
+    const dt = Math.min(time - lastTime.current, 64);
+    lastTime.current = time;
+
+    // Frame-rate independent lerp factor for snappy magnetic feel
+    const factor = 1 - Math.pow(1 - 0.25, dt / 16.67);
+    currentPos.current.x += (targetPos.current.x - currentPos.current.x) * factor;
+    currentPos.current.y += (targetPos.current.y - currentPos.current.y) * factor;
+
+    const el = ref.current;
+    if (el) {
+      el.style.transform = `translate3d(${currentPos.current.x.toFixed(2)}px, ${currentPos.current.y.toFixed(2)}px, 0)`;
+    }
+
+    const dist = Math.hypot(
+      targetPos.current.x - currentPos.current.x,
+      targetPos.current.y - currentPos.current.y
     );
-  }
+
+    // If mouse left and returned to resting position (< 0.05px)
+    if (!isHovered.current && dist < 0.05) {
+      currentPos.current.x = 0;
+      currentPos.current.y = 0;
+      if (el) el.style.transform = "translate3d(0, 0, 0)";
+      isRafActive.current = false;
+      return;
+    }
+
+    rafId.current = requestAnimationFrame(animate);
+  };
+
+  const startLoop = () => {
+    if (!isRafActive.current) {
+      isRafActive.current = true;
+      lastTime.current = performance.now();
+      rafId.current = requestAnimationFrame(animate);
+    }
+  };
+
+  const handlePointerEnter = () => {
+    isHovered.current = true;
+    updateRect();
+    startLoop();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = rectRef.current;
+    if (!rect) return;
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    targetPos.current.x = (e.clientX - centerX) * strength;
+    targetPos.current.y = (e.clientY - centerY) * strength;
+
+    startLoop();
+  };
+
+  const handlePointerLeave = () => {
+    isHovered.current = false;
+    targetPos.current.x = 0;
+    targetPos.current.y = 0;
+    startLoop();
+  };
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ x: springX, y: springY }}
+      data-cursor="pointer"
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       className={cn("inline-block will-change-transform", className)}
+      style={{ willChange: "transform" }}
       onClick={onClick}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
-

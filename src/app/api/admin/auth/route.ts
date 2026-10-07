@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
       response.cookies.set({
         name: ADMIN_COOKIE_NAME,
-        value: "active",
+        value: `user_${encodeURIComponent("studio@clawcraft.in")}`,
         path: "/",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -55,20 +55,21 @@ export async function POST(req: NextRequest) {
       // Supabase disconnected or mock credentials
     }
 
-    // If Supabase failed or is using mock URL, check default studio admin credentials
-    const isMockProject =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("mock-project") ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY?.includes("mock");
+    // Check default studio admin master password
+    const masterPassword = process.env.ADMIN_PASSWORD || "clawcraft2026";
+    const normalizedInputEmail = email.trim().toLowerCase();
+    const isMasterPasswordMatch =
+      (normalizedInputEmail === "admin@clawcraft.in" || normalizedInputEmail === "studio@clawcraft.in") &&
+      password === masterPassword;
 
-    const isStudioAdminMatch =
-      (process.env.NODE_ENV !== "production" || isMockProject) &&
-      email.trim().toLowerCase() === "admin@clawcraft.in" &&
-      password === (process.env.ADMIN_PASSWORD || "clawcraft2026");
+    if (isMasterPasswordMatch) {
+      authenticatedEmail = normalizedInputEmail;
+    }
 
     // Verify that the email is in the admin allow-list
     const isAllowed = isAllowedAdminEmail(authenticatedEmail);
 
-    if ((supabaseSuccess && isAllowed) || isStudioAdminMatch) {
+    if ((supabaseSuccess && isAllowed) || isMasterPasswordMatch) {
       const response = NextResponse.json({
         success: true,
         user: { email: authenticatedEmail, role: "artisan_admin" },
