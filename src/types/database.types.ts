@@ -18,9 +18,14 @@ export type OrderStatus =
 export type CouponDiscountType = "percentage" | "flat";
 export type CustomRequestStatus =
   | "new"
+  | "reviewing"
+  | "quoted"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
   | "reviewed"
   | "in_discussion"
-  | "accepted"
   | "declined";
 
 export interface Database {
@@ -386,6 +391,9 @@ export interface Database {
       custom_requests: {
         Row: {
           id: string;
+          ref_code: string | null;
+          public_token: string | null;
+          user_id: string | null;
           name: string;
           email: string;
           phone: string;
@@ -397,9 +405,13 @@ export interface Database {
           status: CustomRequestStatus;
           admin_notes: string | null;
           created_at: string;
+          last_status_change_at: string | null;
         };
         Insert: {
           id?: string;
+          ref_code?: string | null;
+          public_token?: string | null;
+          user_id?: string | null;
           name: string;
           email: string;
           phone: string;
@@ -411,9 +423,13 @@ export interface Database {
           status?: CustomRequestStatus;
           admin_notes?: string | null;
           created_at?: string;
+          last_status_change_at?: string | null;
         };
         Update: {
           id?: string;
+          ref_code?: string | null;
+          public_token?: string | null;
+          user_id?: string | null;
           name?: string;
           email?: string;
           phone?: string;
@@ -425,6 +441,43 @@ export interface Database {
           status?: CustomRequestStatus;
           admin_notes?: string | null;
           created_at?: string;
+          last_status_change_at?: string | null;
+        };
+        Relationships: [];
+      };
+      custom_request_events: {
+        Row: {
+          id: string;
+          request_id: string;
+          status: CustomRequestStatus;
+          customer_message: string | null;
+          internal_note: string | null;
+          created_by: string | null;
+          created_at: string;
+          email_sent_at: string | null;
+          email_error: string | null;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          status: CustomRequestStatus;
+          customer_message?: string | null;
+          internal_note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          email_sent_at?: string | null;
+          email_error?: string | null;
+        };
+        Update: {
+          id?: string;
+          request_id?: string;
+          status?: CustomRequestStatus;
+          customer_message?: string | null;
+          internal_note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          email_sent_at?: string | null;
+          email_error?: string | null;
         };
         Relationships: [];
       };

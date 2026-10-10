@@ -102,7 +102,12 @@ export default async function AdminDashboardPage() {
   // 5. Recent Orders: Fetch the 5 most recent orders (id, customer_name, city, total_amount, status)
   const recentOrders = orders.slice(0, 5);
   const pendingRequests = customRequests.filter(
-    (r) => r.status === "new" || r.status === "in_discussion"
+    (r) =>
+      r.status === "new" ||
+      r.status === "reviewing" ||
+      r.status === "reviewed" ||
+      r.status === "quoted" ||
+      r.status === "in_discussion"
   );
 
   return (

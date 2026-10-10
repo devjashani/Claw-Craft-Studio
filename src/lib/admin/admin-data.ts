@@ -7,6 +7,9 @@ import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
 
 export interface CustomRequestItem {
   id: string;
+  ref_code?: string | null;
+  public_token?: string | null;
+  user_id?: string | null;
   name: string;
   email: string;
   phone: string;
@@ -18,6 +21,18 @@ export interface CustomRequestItem {
   status: CustomRequestStatus;
   admin_notes: string | null;
   created_at: string;
+  last_status_change_at?: string | null;
+  events?: {
+    id: string;
+    request_id: string;
+    status: string;
+    customer_message: string | null;
+    internal_note: string | null;
+    created_by: string | null;
+    created_at: string;
+    email_sent_at: string | null;
+    email_error: string | null;
+  }[];
 }
 
 export interface SiteSettingsMap {
@@ -623,7 +638,7 @@ export async function toggleCouponActive(id: string, isActive: boolean): Promise
 export async function getAdminCustomRequests(): Promise<CustomRequestItem[]> {
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    const { data: requests, error } = await supabase
       .from("custom_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -633,7 +648,30 @@ export async function getAdminCustomRequests(): Promise<CustomRequestItem[]> {
       return [];
     }
 
-    return (data || []) as unknown as CustomRequestItem[];
+    if (!requests || requests.length === 0) return [];
+
+    const requestIds = requests.map((r) => r.id);
+    const { data: events } = await supabase
+      .from("custom_request_events")
+      .select("*")
+      .in("request_id", requestIds)
+      .order("created_at", { ascending: true });
+
+    const eventsByRequest: Record<string, any[]> = {};
+    if (events) {
+      for (const ev of events) {
+        if (!eventsByRequest[ev.request_id]) {
+          eventsByRequest[ev.request_id] = [];
+        }
+        eventsByRequest[ev.request_id].push(ev);
+      }
+    }
+
+    return requests.map((r) => ({
+      ...r,
+      ref_code: r.ref_code || `CR-${r.id.slice(0, 8).toUpperCase()}`,
+      events: eventsByRequest[r.id] || [],
+    })) as unknown as CustomRequestItem[];
   } catch (err) {
     console.error("[getAdminCustomRequests Exception]", err);
     return [];

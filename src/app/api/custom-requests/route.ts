@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import crypto from "crypto";
 import { getStrictServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { resend } from "@/lib/resend";
 import { CustomRequestStatus } from "@/types/database.types";
+import { sendCustomRequestReceivedEmail } from "@/lib/custom-requests/email";
 
 export const dynamic = "force-dynamic";
 
@@ -188,10 +191,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 7. Insert with Server-Only Service Role Client
-    const supabase = getStrictServiceRoleClient();
+    // 7. Check Authenticated Session on Server (NEVER trust user_id from client body)
+    let sessionUserId: string | null = null;
+    try {
+      const userSupabase = createClient();
+      const { data: authData } = await userSupabase.auth.getUser();
+      if (authData?.user) {
+        sessionUserId = authData.user.id;
+      }
+    } catch {
+      // Anonymous visitor submitting guest commission request
+    }
 
-    const insertPayload = {
+    // 8. Insert with Server-Only Service Role Client
+    const supabase = getStrictServiceRoleClient();
+    const generatedToken = crypto.randomBytes(32).toString("hex");
+
+    const insertPayload: Record<string, unknown> = {
       name: validated.name,
       email: validated.email.toLowerCase(),
       phone: validated.phone,
@@ -202,12 +218,15 @@ export async function POST(req: NextRequest) {
       reference_image_urls: validated.reference_image_urls,
       status: "new" as CustomRequestStatus,
       admin_notes: null,
+      user_id: sessionUserId,
+      public_token: generatedToken,
+      last_status_change_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
       .from("custom_requests")
-      .insert(insertPayload)
-      .select("id, created_at")
+      .insert(insertPayload as any)
+      .select("id, ref_code, public_token, created_at")
       .single();
 
     // FAIL LOUDLY: Return success ONLY if insert returned the new row id
@@ -228,9 +247,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const shortRef = `REQ-${data.id.slice(0, 8).toUpperCase()}`;
+    // Determine final ref_code and public_token
+    let finalRefCode: string = data.ref_code || "";
+    const finalToken: string = data.public_token || generatedToken;
 
-    // 8. Admin Email Notification (non-blocking: must never fail the request if email fails)
+    if (!finalRefCode) {
+      finalRefCode = `CR-${new Date().getFullYear()}-${data.id.slice(0, 4).toUpperCase()}`;
+      try {
+        await supabase
+          .from("custom_requests")
+          .update({ ref_code: finalRefCode, public_token: finalToken } as any)
+          .eq("id", data.id);
+      } catch (updateRefErr) {
+        console.warn("[Custom Request Ref Backfill Warning]", updateRefErr);
+      }
+    }
+
+    // 9. Backfill Initial "Submitted" Timeline Event
+    try {
+      await supabase.from("custom_request_events").insert({
+        request_id: data.id,
+        status: "new",
+        customer_message: "Custom build request submitted.",
+        created_at: data.created_at || new Date().toISOString(),
+      } as any);
+    } catch (eventErr) {
+      console.warn("[Custom Request Initial Event Warning]", eventErr);
+    }
+
+    // 10. Customer Initial Confirmation Email with Private Tracking Link
+    try {
+      await sendCustomRequestReceivedEmail({
+        customerName: validated.name,
+        customerEmail: validated.email,
+        refCode: finalRefCode,
+        publicToken: finalToken,
+        conceptSummary:
+          validated.concept_description.length > 140
+            ? `${validated.concept_description.slice(0, 140)}...`
+            : validated.concept_description,
+      });
+    } catch (custEmailErr) {
+      console.error("[Customer Confirmation Email Non-Fatal Error]", custEmailErr);
+    }
+
+    // 11. Admin Email Notification (non-blocking: must never fail the request if email fails)
     const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "studio@clawcraft.in";
     if (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes("placeholder")) {
       try {
@@ -244,10 +305,10 @@ export async function POST(req: NextRequest) {
         await resend.emails.send({
           from: process.env.EMAIL_FROM || "orders@clawcraft.in",
           to: adminEmail,
-          subject: `⚡ New Commission Proposal [${shortRef}]: ${validated.name}`,
+          subject: `⚡ New Commission Proposal [${finalRefCode}]: ${validated.name}`,
           html: `
             <h2>New Bespoke Can Sculpture Inquiry</h2>
-            <p><strong>Reference ID:</strong> ${shortRef} (${data.id})</p>
+            <p><strong>Reference Code:</strong> ${finalRefCode} (${data.id})</p>
             <p><strong>Client:</strong> ${validated.name} (${validated.email}, +91 ${validated.phone})</p>
             <p><strong>Concept:</strong></p>
             <blockquote style="background:#111; color:#eee; padding:12px; border-left:3px solid #b8ff1f;">
@@ -259,7 +320,7 @@ export async function POST(req: NextRequest) {
             ${referenceHtml}
             <p><a href="https://wa.me/91${validated.phone}?text=Hello%20${encodeURIComponent(
             validated.name
-          )},%20this%20is%20CLAWCRAFT%20Studio%20regarding%20your%20custom%20commission%20proposal%20(${shortRef})">Click here to message client on WhatsApp</a></p>
+          )},%20this%20is%20CLAWCRAFT%20Studio%20regarding%20your%20custom%20commission%20proposal%20(${finalRefCode})">Click here to message client on WhatsApp</a></p>
           `,
         });
       } catch (emailErr) {
@@ -269,11 +330,16 @@ export async function POST(req: NextRequest) {
       console.log(`[Email Notice] Custom inquiry notification dispatched to ${adminEmail}`);
     }
 
-    // 9. Successful Response with Reference ID
+    // 12. Return Tracking Credentials and Direct Link
+    const trackUrl = `/track/custom?ref=${encodeURIComponent(finalRefCode)}&t=${encodeURIComponent(finalToken)}`;
+
     return NextResponse.json({
       success: true,
       id: data.id,
-      referenceId: shortRef,
+      refCode: finalRefCode,
+      publicToken: finalToken,
+      referenceId: finalRefCode,
+      trackUrl,
       message: "Commission proposal recorded successfully.",
     });
   } catch (error) {

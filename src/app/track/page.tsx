@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Order, OrderItem } from "@/types/shop";
 import { formatINR } from "@/lib/utils";
 import { ClawButton } from "@/components/ui/claw-button";
@@ -94,6 +95,20 @@ export default function TrackOrderPage() {
             Enter your Order Reference Number (e.g., CC-2026-XXXX) and registered
             mobile number to view real-time assembly and transit status.
           </p>
+
+          {/* Mode Switcher */}
+          <div className="pt-2 flex flex-wrap justify-center gap-3">
+            <span className="px-3.5 py-1.5 bg-acid/10 border border-acid text-acid text-xs font-mono uppercase rounded font-bold">
+              Standard Store Orders
+            </span>
+            <Link
+              href="/track/custom"
+              className="px-3.5 py-1.5 bg-ash border border-steel/25 text-steel hover:text-acid hover:border-acid/40 text-xs font-mono uppercase rounded transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>Custom Build Commissions</span>
+              <ExternalLink className="w-3 h-3 text-acid" />
+            </Link>
+          </div>
         </div>
 
         {/* Search Box */}

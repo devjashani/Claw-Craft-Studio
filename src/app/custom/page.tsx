@@ -27,6 +27,7 @@ import {
   Loader2,
   AlertTriangle,
   ImageIcon,
+  Compass,
 } from "lucide-react";
 
 export default function CustomBuildsPage() {
@@ -56,6 +57,7 @@ export default function CustomBuildsPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedPhone, setSubmittedPhone] = useState("");
   const [submittedRefId, setSubmittedRefId] = useState("");
+  const [submittedTrackUrl, setSubmittedTrackUrl] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
   const processUpload = async (file: File) => {
@@ -283,9 +285,22 @@ export default function CustomBuildsPage() {
         );
       }
 
-      const refId = data.referenceId || `REQ-${data.id?.slice(0, 8).toUpperCase()}`;
+      const refId = data.refCode || data.referenceId || `REQ-${data.id?.slice(0, 8).toUpperCase()}`;
+      const trackUrl = data.trackUrl || `/track/custom?ref=${encodeURIComponent(refId)}`;
       setSubmittedRefId(refId);
+      setSubmittedTrackUrl(trackUrl);
       setSubmittedPhone(phone);
+
+      // Save a copy of the last request link as a convenience
+      try {
+        localStorage.setItem(
+          "clawcraft_last_custom_track",
+          JSON.stringify({ refCode: refId, trackUrl, submittedAt: new Date().toISOString() })
+        );
+      } catch {
+        // Ignore localStorage quota or privacy restrictions
+      }
+
       setSubmitted(true);
       showToast("Commission proposal recorded in the studio!", "success");
     } catch (err: unknown) {
@@ -396,6 +411,14 @@ export default function CustomBuildsPage() {
             </div>
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href={submittedTrackUrl || `/track/custom?ref=${submittedRefId}`}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-acid hover:bg-lime-400 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors shadow-lg"
+              >
+                <Compass className="w-4 h-4" />
+                <span>Track This Request</span>
+              </Link>
+
               <a
                 href={whatsappFollowUpUrl}
                 target="_blank"
