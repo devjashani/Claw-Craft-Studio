@@ -52,7 +52,6 @@ export default function AdminCustomRequestsPage() {
     try {
       const res = await fetch("/api/admin/custom-requests");
       if (res.status === 403) {
-        showToast("Access forbidden: Artisan admin authorization required.", "error");
         setRequests([]);
         return;
       }
@@ -65,7 +64,7 @@ export default function AdminCustomRequestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     fetchRequests();

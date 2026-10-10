@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,18 +39,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
 
-  const toastHelpers = {
-    success: (title: string, description?: string) =>
-      addToast("success", title, description),
-    error: (title: string, description?: string) =>
-      addToast("error", title, description),
-    info: (title: string, description?: string) =>
-      addToast("info", title, description),
-  };
+  const toastHelpers = useMemo(
+    () => ({
+      success: (title: string, description?: string) =>
+        addToast("success", title, description),
+      error: (title: string, description?: string) =>
+        addToast("error", title, description),
+      info: (title: string, description?: string) =>
+        addToast("info", title, description),
+    }),
+    [addToast]
+  );
 
   return (
     <ToastContext.Provider value={{ toast: toastHelpers }}>
@@ -129,12 +132,21 @@ export function useToast() {
   if (!context) {
     throw new Error("useToast must be used within a ToastProvider");
   }
-  return {
-    ...context.toast,
-    showToast: (title: string, type: ToastType = "info") => {
+
+  const showToast = useCallback(
+    (title: string, type: ToastType = "info") => {
       if (type === "success") context.toast.success(title);
       else if (type === "error") context.toast.error(title);
       else context.toast.info(title);
     },
-  };
+    [context.toast]
+  );
+
+  return useMemo(
+    () => ({
+      ...context.toast,
+      showToast,
+    }),
+    [context.toast, showToast]
+  );
 }
