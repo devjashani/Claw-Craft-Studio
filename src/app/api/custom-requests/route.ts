@@ -1,128 +1,288 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { z } from "zod";
+import { getStrictServiceRoleClient } from "@/lib/supabase/admin";
 import { resend } from "@/lib/resend";
-import { getAdminCustomRequests } from "@/lib/admin/admin-data";
 import { CustomRequestStatus } from "@/types/database.types";
 
 export const dynamic = "force-dynamic";
 
+// --- In-Memory Sliding Window IP Rate Limiting (5 requests per 10 minutes) ---
+interface RateLimitRecord {
+  count: number;
+  resetAt: number;
+}
+const ipRateLimits = new Map<string, RateLimitRecord>();
+
+function checkRateLimit(ip: string, limit = 5, windowMs = 10 * 60 * 1000): boolean {
+  const now = Date.now();
+  const entry = ipRateLimits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipRateLimits.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= limit) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+}
+
+// Basic text sanitization helper (strips HTML tags and excessive control chars)
+function sanitizeText(input: unknown): string {
+  if (typeof input !== "string") return "";
+  return input
+    .replace(/<[^>]*>?/gm, "") // Strip HTML tags
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Strip non-printable control chars
+    .trim();
+}
+
+// Zod Schema Definition
+const customRequestSchema = z.object({
+  name: z
+    .string({ required_error: "Full name is required." })
+    .transform(sanitizeText)
+    .pipe(
+      z
+        .string()
+        .min(2, "Name must be at least 2 characters.")
+        .max(80, "Name cannot exceed 80 characters.")
+    ),
+  email: z
+    .string({ required_error: "Email address is required." })
+    .transform(sanitizeText)
+    .pipe(
+      z
+        .string()
+        .email("Please provide a valid email address.")
+        .max(255, "Email address is too long.")
+    ),
+  phone: z
+    .string({ required_error: "Phone number is required." })
+    .transform((val) => sanitizeText(val).replace(/\D/g, ""))
+    .pipe(
+      z
+        .string()
+        .regex(
+          /^[6-9]\d{9}$/,
+          "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
+        )
+    ),
+  concept_description: z
+    .string({ required_error: "Concept description is required." })
+    .transform(sanitizeText)
+    .pipe(
+      z
+        .string()
+        .min(20, "Please describe your custom sculpture concept in at least 20 characters.")
+        .max(2000, "Concept description cannot exceed 2000 characters.")
+    ),
+  preferred_can_types: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? sanitizeText(val).slice(0, 200) : null)),
+  estimated_size: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? sanitizeText(val).slice(0, 100) : null)),
+  budget_inr: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? sanitizeText(val).slice(0, 100) : null)),
+  reference_image_urls: z
+    .array(z.string().url("Invalid image URL"))
+    .max(10, "Maximum 10 reference images allowed.")
+    .optional()
+    .default([]),
+  honeypot: z.string().optional().nullable(),
+});
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const {
-      name,
-      email,
-      phone,
-      concept_description,
-      preferred_can_types,
-      estimated_size,
-      budget_inr,
-      reference_image_urls,
-    } = body;
+    // 1. IP Rate Limiting
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
 
-    // 1. Validation
-    if (!name || typeof name !== "string" || name.trim().length < 2) {
+    if (!checkRateLimit(clientIp)) {
+      console.warn(`[Rate Limit Exceeded] Too many custom requests from IP: ${clientIp}`);
       return NextResponse.json(
-        { error: "Please provide your full name." },
+        {
+          error: "Too many commission requests from this network. Please wait a few minutes before trying again.",
+          code: "RATE_LIMITED",
+        },
+        { status: 429 }
+      );
+    }
+
+    // 2. Parse request body
+    let rawBody: Record<string, unknown>;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON request payload.", code: "BAD_REQUEST" },
         { status: 400 }
       );
     }
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    // 3. Honeypot check (anti-bot)
+    const honeypotVal = rawBody.honeypot || rawBody.website || rawBody.hp_field;
+    if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim() !== "") {
+      console.warn(`[Spam Detected] Honeypot triggered from IP: ${clientIp}`);
       return NextResponse.json(
-        { error: "Please enter a valid email address." },
+        { error: "Invalid submission.", code: "SPAM_DETECTED" },
         { status: 400 }
       );
     }
 
-    const cleanPhone = String(phone || "").replace(/\D/g, "");
-    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      return NextResponse.json(
-        { error: "Please enter a valid 10-digit Indian mobile number." },
-        { status: 400 }
-      );
-    }
-
-    if (
-      !concept_description ||
-      typeof concept_description !== "string" ||
-      concept_description.trim().length < 10
-    ) {
-      return NextResponse.json(
-        { error: "Please describe your custom sculpture concept (at least 10 characters)." },
-        { status: 400 }
-      );
-    }
-
-    const payload = {
-      id: `req-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: cleanPhone,
-      concept_description: concept_description.trim(),
-      preferred_can_types: preferred_can_types ? String(preferred_can_types).trim() : null,
-      estimated_size: estimated_size ? String(estimated_size).trim() : null,
-      budget_inr: budget_inr ? String(budget_inr).trim() : null,
-      reference_image_urls: Array.isArray(reference_image_urls) ? reference_image_urls : [],
-      status: "new" as CustomRequestStatus,
-      created_at: new Date().toISOString(),
+    // 4. Map form fields to schema inputs (support both concept and concept_description)
+    const normalizedInput = {
+      name: rawBody.name,
+      email: rawBody.email,
+      phone: rawBody.phone,
+      concept_description: rawBody.concept_description ?? rawBody.concept,
+      preferred_can_types: rawBody.preferred_can_types ?? rawBody.preferredCans,
+      estimated_size: rawBody.estimated_size ?? rawBody.estimatedSize,
+      budget_inr: rawBody.budget_inr ?? rawBody.budget,
+      reference_image_urls: Array.isArray(rawBody.reference_image_urls)
+        ? rawBody.reference_image_urls
+        : Array.isArray(rawBody.referenceUrls)
+        ? rawBody.referenceUrls
+        : [],
+      honeypot: honeypotVal || null,
     };
 
-    // 2. Try inserting into Supabase
-    let insertedInDb = false;
-    try {
-      const supabase = createAdminClient();
-      const { error } = await supabase.from("custom_requests").insert(payload as any);
-      if (!error) {
-        insertedInDb = true;
-      }
-    } catch {
-      // In mock/offline mode
+    // 5. Zod Validation
+    const validationResult = customRequestSchema.safeParse(normalizedInput);
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.flatten().fieldErrors;
+      const firstErrorMessage =
+        validationResult.error.errors[0]?.message || "Please check the form inputs.";
+      return NextResponse.json(
+        {
+          error: firstErrorMessage,
+          fieldErrors,
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 }
+      );
     }
 
-    // Fallback store update if Supabase was offline
-    if (!insertedInDb) {
-      const requests = await getAdminCustomRequests();
-      requests.unshift({ ...payload, admin_notes: null });
+    const validated = validationResult.data;
+
+    // 6. Verify Server-Only Service Role Key Presence
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error(
+        "[CRITICAL CONFIG ERROR] SUPABASE_SERVICE_ROLE_KEY is missing or empty in server environment. Commission requests cannot be saved to public.custom_requests."
+      );
+      return NextResponse.json(
+        {
+          error: "We could not save your request, please try again or message us on WhatsApp",
+          code: "SERVER_CONFIG_ERROR",
+        },
+        { status: 500 }
+      );
     }
 
-    // 3. Send Admin Alert Email via Resend
+    // 7. Insert with Server-Only Service Role Client
+    const supabase = getStrictServiceRoleClient();
+
+    const insertPayload = {
+      name: validated.name,
+      email: validated.email.toLowerCase(),
+      phone: validated.phone,
+      concept_description: validated.concept_description,
+      preferred_can_types: validated.preferred_can_types || null,
+      estimated_size: validated.estimated_size || null,
+      budget_inr: validated.budget_inr || null,
+      reference_image_urls: validated.reference_image_urls,
+      status: "new" as CustomRequestStatus,
+      admin_notes: null,
+    };
+
+    const { data, error } = await supabase
+      .from("custom_requests")
+      .insert(insertPayload)
+      .select("id, created_at")
+      .single();
+
+    // FAIL LOUDLY: Return success ONLY if insert returned the new row id
+    if (error || !data?.id) {
+      console.error("[Custom Request Database Insert Failed]", {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+      });
+
+      return NextResponse.json(
+        {
+          error: "We could not save your request, please try again or message us on WhatsApp",
+          code: error?.code || "DATABASE_INSERT_FAILED",
+        },
+        { status: 500 }
+      );
+    }
+
+    const shortRef = `REQ-${data.id.slice(0, 8).toUpperCase()}`;
+
+    // 8. Admin Email Notification (non-blocking: must never fail the request if email fails)
     const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "studio@clawcraft.in";
     if (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes("placeholder")) {
       try {
+        const referenceHtml =
+          validated.reference_image_urls.length > 0
+            ? `<p><strong>Attached Reference Visuals (${validated.reference_image_urls.length}):</strong></p><ul>${validated.reference_image_urls
+                .map((u) => `<li><a href="${u}" target="_blank">${u}</a></li>`)
+                .join("")}</ul>`
+            : "";
+
         await resend.emails.send({
           from: process.env.EMAIL_FROM || "orders@clawcraft.in",
           to: adminEmail,
-          subject: `⚡ New Custom Commission Request: ${payload.name}`,
+          subject: `⚡ New Commission Proposal [${shortRef}]: ${validated.name}`,
           html: `
             <h2>New Bespoke Can Sculpture Inquiry</h2>
-            <p><strong>Client:</strong> ${payload.name} (${payload.email}, +91 ${payload.phone})</p>
+            <p><strong>Reference ID:</strong> ${shortRef} (${data.id})</p>
+            <p><strong>Client:</strong> ${validated.name} (${validated.email}, +91 ${validated.phone})</p>
             <p><strong>Concept:</strong></p>
             <blockquote style="background:#111; color:#eee; padding:12px; border-left:3px solid #b8ff1f;">
-              ${payload.concept_description}
+              ${validated.concept_description}
             </blockquote>
-            <p><strong>Preferred Cans:</strong> ${payload.preferred_can_types || "N/A"}</p>
-            <p><strong>Target Size:</strong> ${payload.estimated_size || "N/A"}</p>
-            <p><strong>Budget:</strong> ${payload.budget_inr || "Flexible"}</p>
-            <p><a href="https://wa.me/91${payload.phone}">Click here to message client on WhatsApp</a></p>
+            <p><strong>Preferred Cans:</strong> ${validated.preferred_can_types || "N/A"}</p>
+            <p><strong>Target Size:</strong> ${validated.estimated_size || "N/A"}</p>
+            <p><strong>Budget:</strong> ${validated.budget_inr || "Flexible"}</p>
+            ${referenceHtml}
+            <p><a href="https://wa.me/91${validated.phone}?text=Hello%20${encodeURIComponent(
+            validated.name
+          )},%20this%20is%20CLAWCRAFT%20Studio%20regarding%20your%20custom%20commission%20proposal%20(${shortRef})">Click here to message client on WhatsApp</a></p>
           `,
         });
       } catch (emailErr) {
-        console.error("[Resend Custom Request Alert Error]", emailErr);
+        console.error("[Resend Custom Request Alert Error (Non-Fatal)]", emailErr);
       }
     } else {
-      console.log(`[Email Mock] Custom inquiry notification dispatched to ${adminEmail}`);
+      console.log(`[Email Notice] Custom inquiry notification dispatched to ${adminEmail}`);
     }
 
+    // 9. Successful Response with Reference ID
     return NextResponse.json({
       success: true,
-      id: payload.id,
-      message: "Commission request submitted to CLAWCRAFT Studio.",
+      id: data.id,
+      referenceId: shortRef,
+      message: "Commission proposal recorded successfully.",
     });
   } catch (error) {
-    console.error("[Custom Request API Error]", error);
+    console.error("[Custom Request Route Exception]", error);
     return NextResponse.json(
-      { error: "Failed to submit commission request. Please try again." },
+      {
+        error: "We could not save your request, please try again or message us on WhatsApp",
+        code: "SERVER_EXCEPTION",
+      },
       { status: 500 }
     );
   }

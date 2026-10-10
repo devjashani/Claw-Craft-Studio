@@ -618,6 +618,8 @@ export async function toggleCouponActive(id: string, isActive: boolean): Promise
 // -------------------------------------------------------------
 // CUSTOM REQUESTS
 // -------------------------------------------------------------
+// CUSTOM REQUESTS (STRICT SERVER-SIDE SERVICE-ROLE ONLY)
+// -------------------------------------------------------------
 export async function getAdminCustomRequests(): Promise<CustomRequestItem[]> {
   try {
     const supabase = createAdminClient();
@@ -626,19 +628,16 @@ export async function getAdminCustomRequests(): Promise<CustomRequestItem[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      return data as unknown as CustomRequestItem[];
+    if (error) {
+      console.error("[getAdminCustomRequests Error]", error.message);
+      return [];
     }
-  } catch {
-    // Fallback
-  }
 
-  if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true") {
+    return (data || []) as unknown as CustomRequestItem[];
+  } catch (err) {
+    console.error("[getAdminCustomRequests Exception]", err);
     return [];
   }
-
-  const store = getMockStore();
-  return store.customRequests;
 }
 
 export async function updateAdminCustomRequestStatus(
@@ -650,18 +649,16 @@ export async function updateAdminCustomRequestStatus(
     const supabase = createAdminClient();
     const payload: Record<string, unknown> = { status };
     if (adminNotes !== undefined) payload.admin_notes = adminNotes;
-    await supabase.from("custom_requests").update(payload as any).eq("id", id);
-  } catch {
-    // ignore
+    const { error } = await supabase.from("custom_requests").update(payload as any).eq("id", id);
+    if (error) {
+      console.error("[updateAdminCustomRequestStatus Error]", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[updateAdminCustomRequestStatus Exception]", err);
+    return false;
   }
-
-  const store = getMockStore();
-  const item = store.customRequests.find((r) => r.id === id);
-  if (item) {
-    item.status = status;
-    if (adminNotes !== undefined) item.admin_notes = adminNotes;
-  }
-  return true;
 }
 
 // -------------------------------------------------------------

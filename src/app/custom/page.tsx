@@ -1,8 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import imageCompression from "browser-image-compression";
+import { createClient } from "@/lib/supabase/client";
 import { ClawButton } from "@/components/ui/claw-button";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
@@ -19,6 +22,11 @@ import {
   HelpCircle,
   FileCheck,
   Zap,
+  X,
+  RotateCcw,
+  Loader2,
+  AlertTriangle,
+  ImageIcon,
 } from "lucide-react";
 
 export default function CustomBuildsPage() {
@@ -32,35 +40,218 @@ export default function CustomBuildsPage() {
   const [estimatedSize, setEstimatedSize] = useState("Desktop sculpture (30–50 cm)");
   const [budget, setBudget] = useState("₹5,000 – ₹10,000");
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Direct upload states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<
+    "idle" | "compressing" | "uploading" | "success" | "error"
+  >("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lastUploadedUrl, setLastUploadedUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedPhone, setSubmittedPhone] = useState("");
+  const [submittedRefId, setSubmittedRefId] = useState("");
+  const [honeypot, setHoneypot] = useState("");
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processUpload = async (file: File) => {
+    // 1. Check size limit (> 10 MB)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const errMsg = `Original image is ${sizeMb} MB. Maximum allowed size is 10 MB. Please choose a smaller photo.`;
+      console.warn("[Upload Validation Rejected]", errMsg);
+      setUploadError(errMsg);
+      setUploadStatus("error");
+      showToast(errMsg, "error");
+      return;
+    }
 
-    setUploadingImage(true);
+    // 2. Check format (jpg, jpeg, png, webp, heic, heif)
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const allowedExts = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+    const isImageMime = file.type.startsWith("image/") || file.type === "";
+    if (!allowedExts.includes(ext) && !isImageMime) {
+      const errMsg = `Unsupported image format (.${ext || "file"}). Allowed: JPG, PNG, WebP, HEIC/HEIF.`;
+      console.warn("[Upload Validation Rejected]", errMsg);
+      setUploadError(errMsg);
+      setUploadStatus("error");
+      showToast(errMsg, "error");
+      return;
+    }
+
+    setUploadError(null);
+    setUploadStatus("compressing");
+    setUploadProgress(10);
+
+    // Initial preview if browser supports native rendering (PNG, JPG, WebP)
+    const isHeic =
+      ext === "heic" ||
+      ext === "heif" ||
+      file.type.toLowerCase().includes("heic") ||
+      file.type.toLowerCase().includes("heif");
+
+    if (!isHeic && typeof URL !== "undefined") {
+      try {
+        setPreviewUrl(URL.createObjectURL(file));
+      } catch {}
+    }
+
+    // 3. Client-side compression (max 1600px, ~0.8 quality, target < 1.5 MB, convert HEIC to JPEG)
+    let compressedFile: File;
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const options = {
+        maxSizeMB: 1.5,
+        maxWidthOrHeight: 1600,
+        initialQuality: 0.8,
+        fileType: "image/jpeg",
+        useWebWorker: true,
+        onProgress: (p: number) => {
+          // Scale compression progress to 10% - 50%
+          setUploadProgress(Math.round(10 + p * 0.4));
+        },
+      };
 
-      const res = await fetch("/api/admin/upload", {
+      compressedFile = await imageCompression(file, options);
+      setUploadProgress(50);
+
+      // Once compressed to JPEG, all browsers (including iOS Safari) can preview the object URL
+      try {
+        setPreviewUrl(URL.createObjectURL(compressedFile));
+      } catch {}
+    } catch (compErr: unknown) {
+      console.error("[Client Image Compression Error]", compErr);
+      if (file.size <= 1.5 * 1024 * 1024 && !isHeic) {
+        compressedFile = file;
+        setUploadProgress(50);
+      } else {
+        const errMsg = "Failed to process or compress this image on your device. Please try another image.";
+        setUploadError(errMsg);
+        setUploadStatus("error");
+        showToast(errMsg, "error");
+        return;
+      }
+    }
+
+    // 4. Request Direct Signed Upload URL from server
+    setUploadStatus("uploading");
+    setUploadProgress(60);
+
+    let signData: { signedUrl: string; token: string; path: string; publicUrl: string };
+    try {
+      const res = await fetch("/api/custom-requests/upload-url", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          fileType: "image/jpeg",
+          fileSize: compressedFile.size,
+        }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (!res.ok || !data.signedUrl) {
+        console.error("[Signed URL Request Failed]", res.status, data);
+        const errMsg = data.error || `Server returned error ${res.status} when generating upload authorization.`;
+        throw new Error(errMsg);
+      }
 
-      setReferenceUrls([...referenceUrls, data.url]);
+      signData = data;
+      setUploadProgress(75);
+    } catch (err: unknown) {
+      console.error("[Signed URL Generation Error]", err);
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      const errMsg = isOffline
+        ? "Network offline. Please check your internet connection."
+        : err instanceof Error
+        ? err.message
+        : "Failed to generate storage upload URL.";
+      setUploadError(errMsg);
+      setUploadStatus("error");
+      showToast(errMsg, "error");
+      return;
+    }
+
+    // 5. Direct Browser-to-Storage Upload
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.storage
+        .from("custom-references")
+        .uploadToSignedUrl(signData.path, signData.token, compressedFile, {
+          contentType: "image/jpeg",
+        });
+
+      if (error || !data) {
+        console.error("[Direct Storage Upload Error]", {
+          error,
+          statusCode: (error as any)?.statusCode,
+        });
+        throw new Error(error?.message || "Storage rejected the upload.");
+      }
+
+      setUploadProgress(100);
+      setUploadStatus("success");
+      setLastUploadedUrl(signData.publicUrl);
+      setReferenceUrls((prev) => {
+        if (prev.includes(signData.publicUrl)) return prev;
+        return [...prev, signData.publicUrl];
+      });
       showToast("Reference visual attached!", "success");
-    } catch {
-      showToast("Could not upload image. You can describe it in the notes.", "error");
-    } finally {
-      setUploadingImage(false);
+    } catch (uploadErr: unknown) {
+      console.error("[Direct Upload Exception]", uploadErr);
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      const errMsg = isOffline
+        ? "Network connection lost during upload. Please reconnect and retry."
+        : uploadErr instanceof Error
+        ? uploadErr.message
+        : "Storage upload failed. Please try again or submit your notes without the image.";
+      setUploadError(errMsg);
+      setUploadStatus("error");
+      showToast(errMsg, "error");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    processUpload(file);
+  };
+
+  const handleRetryUpload = () => {
+    if (selectedFile) {
+      processUpload(selectedFile);
+    }
+  };
+
+  const handleRemoveCurrent = () => {
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(previewUrl);
+      } catch {}
+    }
+    if (lastUploadedUrl) {
+      setReferenceUrls((prev) => prev.filter((u) => u !== lastUploadedUrl));
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setLastUploadedUrl(null);
+    setUploadStatus("idle");
+    setUploadProgress(0);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveUrl = (urlToRemove: string) => {
+    setReferenceUrls((prev) => prev.filter((u) => u !== urlToRemove));
+    if (lastUploadedUrl === urlToRemove) {
+      handleRemoveCurrent();
     }
   };
 
@@ -81,19 +272,29 @@ export default function CustomBuildsPage() {
           estimated_size: estimatedSize,
           budget_inr: budget,
           reference_image_urls: referenceUrls,
+          hp_field: honeypot,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit request.");
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error || "We could not save your request, please try again or message us on WhatsApp"
+        );
       }
 
+      const refId = data.referenceId || `REQ-${data.id?.slice(0, 8).toUpperCase()}`;
+      setSubmittedRefId(refId);
       setSubmittedPhone(phone);
       setSubmitted(true);
-      showToast("Commission proposal sent to the studio!", "success");
+      showToast("Commission proposal recorded in the studio!", "success");
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : "Error submitting request", "error");
+      showToast(
+        err instanceof Error
+          ? err.message
+          : "We could not save your request, please try again or message us on WhatsApp",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -101,7 +302,7 @@ export default function CustomBuildsPage() {
 
   const cleanPhone = submittedPhone.replace(/\D/g, "");
   const whatsappFollowUpUrl = `https://wa.me/919876543210?text=${encodeURIComponent(
-    `Hello CLAWCRAFT Studio! I just submitted a custom commission proposal on your website under the name ${name} (+91 ${cleanPhone}). Looking forward to discussing the design!`
+    `Hello CLAWCRAFT Studio! I just submitted commission proposal [${submittedRefId}] under the name ${name} (+91 ${cleanPhone}). Looking forward to discussing the design!`
   )}`;
 
   return (
@@ -177,7 +378,12 @@ export default function CustomBuildsPage() {
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-void border border-acid/50 rounded text-xs font-mono">
+                <span className="text-muted text-[11px] uppercase tracking-wider">Reference Code:</span>
+                <span className="text-acid font-bold tracking-widest">{submittedRefId}</span>
+              </div>
+
               <h2 className="font-heading text-2xl sm:text-3xl uppercase tracking-wider text-bone">
                 PROPOSAL RECEIVED
               </h2>
@@ -185,7 +391,7 @@ export default function CustomBuildsPage() {
                 Status: In Studio Review
               </p>
               <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
-                Thank you, <strong className="text-bone">{name}</strong>. Our workshop artisan has received your concept. We will review the structural feasibility and contact you via WhatsApp and email within 24 hours.
+                Thank you, <strong className="text-bone">{name}</strong>. Your concept has been saved in our studio database. We will review structural feasibility and contact you via WhatsApp (+91 {cleanPhone}) within 24 hours.
               </p>
             </div>
 
@@ -225,6 +431,18 @@ export default function CustomBuildsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Invisible honeypot field for bot prevention */}
+              <input
+                type="text"
+                name="hp_field"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                className="hidden"
+                aria-hidden="true"
+              />
+
               {/* Contact Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -353,31 +571,183 @@ export default function CustomBuildsPage() {
               </div>
 
               {/* Reference Attachment */}
-              <div>
-                <label className="block text-xs font-mono uppercase text-muted mb-1.5">
-                  Attach Reference Image or Sketch (Optional)
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-void border border-dashed border-subtle hover:border-acid text-muted hover:text-acid cursor-pointer text-xs font-mono rounded transition-colors">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>
-                      {uploadingImage ? "Attaching file..." : "Upload Sketch / Visual"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      disabled={uploadingImage}
-                      className="hidden"
-                    />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono uppercase text-muted">
+                    Attach Reference Image or Sketch (Optional)
                   </label>
-
-                  {referenceUrls.length > 0 && (
-                    <span className="text-xs font-mono text-acid">
-                      ✓ {referenceUrls.length} file(s) attached
-                    </span>
-                  )}
+                  <span className="text-[10px] text-muted font-mono">
+                    JPG, PNG, WebP, HEIC • Max 10 MB
+                  </span>
                 </div>
+
+                {/* Upload Status Card */}
+                {uploadStatus === "idle" && (
+                  <div>
+                    <label className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-void border border-dashed border-subtle hover:border-acid text-muted hover:text-acid cursor-pointer text-xs font-mono rounded transition-colors group">
+                      <Upload className="w-4 h-4 group-hover:scale-110 transition-transform text-steel group-hover:text-acid" />
+                      <span>Upload Sketch / Photo Visual</span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[10px] text-muted font-mono mt-1.5">
+                      iPhone & camera photos are automatically optimized before direct cloud upload.
+                    </p>
+                  </div>
+                )}
+
+                {/* In Progress State (Compressing or Uploading) */}
+                {(uploadStatus === "compressing" || uploadStatus === "uploading") && (
+                  <div className="p-3.5 bg-void border border-subtle rounded space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <div className="flex items-center gap-2 text-bone">
+                        <Loader2 className="w-4 h-4 animate-spin text-acid" />
+                        <span>
+                          {uploadStatus === "compressing"
+                            ? "Optimizing image (max 1600px, JPEG)..."
+                            : "Uploading directly to cloud storage..."}
+                        </span>
+                      </div>
+                      <span className="text-acid font-bold">{uploadProgress}%</span>
+                    </div>
+
+                    <div className="w-full bg-ash h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-acid h-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] font-mono text-muted">
+                      <span className="truncate max-w-[200px]">
+                        {selectedFile?.name || "Processing..."}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCurrent}
+                        className="text-steel hover:text-bone underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error State */}
+                {uploadStatus === "error" && (
+                  <div className="p-3.5 bg-red-950/20 border border-red-500/30 rounded space-y-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                      <div className="space-y-1 text-xs font-mono flex-1">
+                        <p className="text-red-300 font-bold">Image Upload Failed</p>
+                        <p className="text-red-400/90 text-[11px] leading-relaxed">
+                          {uploadError || "Could not upload image."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-red-500/20">
+                      {selectedFile && (
+                        <button
+                          type="button"
+                          onClick={handleRetryUpload}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/40 text-xs font-mono rounded transition-colors"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Retry Upload</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRemoveCurrent}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-muted hover:text-bone text-xs font-mono rounded transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                      <span className="text-[10px] text-muted font-mono ml-auto">
+                        You can still submit your proposal below without this image.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Preview State */}
+                {uploadStatus === "success" && previewUrl && (
+                  <div className="p-3 bg-void border border-subtle rounded flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-14 h-14 rounded border border-subtle overflow-hidden bg-ash shrink-0">
+                        {/* Native img tag handles blob URLs reliably across iOS Safari & desktop */}
+                        <img
+                          src={previewUrl}
+                          alt="Reference visual preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-1 right-1 bg-void/80 rounded-full p-0.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-acid" />
+                        </div>
+                      </div>
+
+                      <div className="text-xs font-mono space-y-0.5">
+                        <p className="text-bone font-medium truncate max-w-[200px] sm:max-w-xs">
+                          {selectedFile?.name || "Reference Image"}
+                        </p>
+                        <p className="text-[11px] text-acid flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Optimized & attached to commission</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRemoveCurrent}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-muted hover:text-red-400 border border-subtle hover:border-red-500/40 rounded text-xs font-mono transition-colors"
+                        title="Remove attachment"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Gallery of Attached URLs if multiple */}
+                {referenceUrls.length > 1 && (
+                  <div className="pt-1">
+                    <span className="text-[10px] text-muted font-mono uppercase block mb-1.5">
+                      Attached Images ({referenceUrls.length}):
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {referenceUrls.map((url, idx) => (
+                        <div
+                          key={idx}
+                          className="relative group w-12 h-12 rounded border border-subtle overflow-hidden bg-void"
+                        >
+                          <img
+                            src={url}
+                            alt={`Reference ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveUrl(url)}
+                            className="absolute inset-0 bg-void/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-red-400"
+                            title="Remove visual"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Mandatory Brand Notice Box */}

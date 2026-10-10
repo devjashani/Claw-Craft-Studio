@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { CustomRequestItem } from "@/lib/admin/admin-data";
 import { CustomRequestStatus } from "@/types/database.types";
@@ -25,9 +25,14 @@ export default function AdminCustomRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/custom-requests");
+      if (res.status === 403) {
+        showToast("Access forbidden: Artisan admin authorization required.", "error");
+        setRequests([]);
+        return;
+      }
       const data = await res.json();
       if (data.requests) {
         setRequests(data.requests);
@@ -37,11 +42,11 @@ export default function AdminCustomRequestsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [fetchRequests]);
 
   const handleStatusChange = async (id: string, newStatus: CustomRequestStatus) => {
     setRequests((prev) =>

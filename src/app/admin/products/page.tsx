@@ -8,7 +8,6 @@ import { formatINR } from "@/lib/utils";
 import { getProductImageUrl } from "@/lib/product-media";
 import { useToast } from "@/components/ui/toast";
 import {
-  Boxes,
   Plus,
   Search,
   ExternalLink,
@@ -87,12 +86,16 @@ export default function AdminProductsPage() {
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.slug.toLowerCase().includes(search.toLowerCase()) ||
       String(p.cans_count).includes(search);
+    const cat = p.category?.toLowerCase() || "";
     const matchesCategory =
       categoryFilter === "all" ||
       p.category === categoryFilter ||
-      (categoryFilter === "sculptures" && (p.category === "sculptures" || p.category === "Gun Sculptures")) ||
-      (categoryFilter === "wall-art" && (p.category === "Wall Art" || p.category === "wall-art" || p.category === "Heart Wall Art")) ||
-      (categoryFilter === "desk-decor" && (p.category === "Desk & Decor" || p.category === "desk-decor"));
+      (categoryFilter === "sculptures" &&
+        (cat === "sculptures" || cat === "sculpture" || cat === "gun sculptures" || cat === "gun-sculptures")) ||
+      (categoryFilter === "wall-art" &&
+        (cat === "wall art" || cat === "wall-art" || cat === "heart wall art" || cat === "hearts" || cat === "heart")) ||
+      (categoryFilter === "desk-decor" &&
+        (cat === "desk & decor" || cat === "desk-decor" || cat === "desk decor" || cat === "desk" || cat === "decor"));
     return matchesSearch && matchesCategory;
   });
 
@@ -215,7 +218,7 @@ export default function AdminProductsPage() {
                                 {p.slug}
                               </span>
                               {p.variants && p.variants.length > 0 && (
-                                <span className="text-[10px] font-mono text-acid px-1.5 py-0.2 bg-acid/10 border border-acid/30 rounded">
+                                <span className="text-[10px] font-mono text-acid px-1.5 py-0.5 bg-acid/10 border border-acid/30 rounded">
                                   {p.variants.length} Variants
                                 </span>
                               )}
