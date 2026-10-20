@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
+import { getBusinessContact } from "@/lib/contact";
 import {
   ChevronDown,
   HelpCircle,
@@ -94,6 +95,7 @@ export default function FaqPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+  const contact = getBusinessContact();
 
   const filteredFaqs = faqsData.filter((item) => {
     const matchesCat = activeCategory === "all" || item.category === activeCategory;
@@ -217,23 +219,27 @@ export default function FaqPage() {
             Have a Specific Question?
           </h3>
           <p className="text-xs text-muted max-w-md mx-auto">
-            Our workshop artisan is available on WhatsApp to answer any query regarding dimensions, materials, or delivery.
+            {contact.isConfigured
+              ? "Our workshop artisan is available on WhatsApp to answer any query regarding dimensions, materials, or delivery."
+              : "Our workshop artisan is available to answer any query regarding dimensions, materials, or delivery."}
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-2">
-            <a
-              href="https://wa.me/919876543210"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Ask on WhatsApp</span>
-            </a>
+            {contact.isConfigured && (
+              <a
+                href={contact.waLink("Hi Clawcraft Studio! I have a question about your sculptures.")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Ask on WhatsApp</span>
+              </a>
+            )}
             <Link
               href="/contact"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-void border border-subtle hover:border-steel text-bone text-xs font-mono uppercase tracking-wider rounded transition-colors"
             >
-              <span>Email the Studio</span>
+              <span>Contact Studio</span>
             </Link>
           </div>
         </div>

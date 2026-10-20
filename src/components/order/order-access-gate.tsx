@@ -86,7 +86,7 @@ export function OrderAccessGate({ orderIdentifier }: OrderAccessGateProps) {
             </label>
             <input
               type="tel"
-              placeholder="9876543210"
+              placeholder="10-digit mobile number"
               maxLength={10}
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}

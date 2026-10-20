@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { ClawButton } from "@/components/ui/claw-button";
+import { getBusinessContact } from "@/lib/contact";
 import {
   Sparkles,
   Recycle,
@@ -23,6 +24,8 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
+  const contact = getBusinessContact();
+
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-16">
@@ -160,6 +163,24 @@ export default function AboutPage() {
                 <span>COMMISSION A CUSTOM BUILD</span>
               </ClawButton>
             </Link>
+
+            {contact.isConfigured ? (
+              <a
+                href={contact.waLink("Hi Clawcraft Studio! I'd like to ask the artisan about custom sculptures.")}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ClawButton variant="secondary" className="text-xs py-3 px-6 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-void">
+                  <span>ASK ON WHATSAPP</span>
+                </ClawButton>
+              </a>
+            ) : (
+              <Link href="/contact">
+                <ClawButton variant="secondary" className="text-xs py-3 px-6">
+                  <span>CONTACT ARTISAN</span>
+                </ClawButton>
+              </Link>
+            )}
           </div>
         </div>
       </div>

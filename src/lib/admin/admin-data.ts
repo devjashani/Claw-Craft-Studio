@@ -46,6 +46,7 @@ export interface SiteSettingsMap {
   business_address?: string;
   gstin?: string;
   watermark_text?: string;
+  support_hours?: string;
 }
 
 // In-memory fallback state to preserve changes across admin actions when Supabase is in mock mode
@@ -140,11 +141,12 @@ function getMockStore(): AdminMockStore {
         announcement_bar_enabled: true,
         announcement_bar_text:
           "HANDCRAFTED FROM CLEANED RECYCLED CANS • FREE PAN-INDIA SHIPPING ON ORDERS ABOVE ₹2,999",
-        whatsapp_number: "919876543210",
+        whatsapp_number: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "",
         admin_notification_email: "studio@clawcraft.in",
         business_address: "",
         gstin: "",
         watermark_text: "CLAWCRAFT STUDIO",
+        support_hours: "",
       },
     };
   }

@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
+import { getBusinessContact } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | CLAWCRAFT Studio",
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPolicyPage() {
+  const contact = getBusinessContact();
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
@@ -83,7 +85,19 @@ export default function PrivacyPolicyPage() {
             <div className="p-4 bg-ash border border-subtle rounded text-xs font-mono space-y-1">
               <p className="text-bone font-bold">CLAWCRAFT Studio Privacy Desk</p>
               <p className="text-muted">Email: studio@clawcraft.in / orders@clawcraft.in</p>
-              <p className="text-muted">WhatsApp: +91 98765 43210</p>
+              {contact.isConfigured && (
+                <p className="text-muted">
+                  WhatsApp:{" "}
+                  <a
+                    href={contact.waLink("Hi Clawcraft Studio! I have a question regarding privacy.")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-acid hover:underline"
+                  >
+                    {contact.display}
+                  </a>
+                </p>
+              )}
               <p className="text-muted">Bengaluru, Karnataka, India</p>
             </div>
           </section>

@@ -3,12 +3,14 @@ import fontkit from "@pdf-lib/fontkit";
 import QRCode from "qrcode";
 import { Order, OrderItem } from "@/types/shop";
 import { generateOrderVerifySignature } from "@/lib/orders/order-crypto";
+import { getBusinessContact } from "@/lib/contact";
 
 export interface BuildSlipOptions {
   watermarkText?: string;
   businessAddress?: string;
   gstin?: string;
   siteUrl?: string;
+  whatsappNumber?: string;
   isDemo?: boolean;
 }
 
@@ -211,18 +213,23 @@ export async function buildSlipPdf(
     font: fontRegular,
     color: rgb(0.3, 0.3, 0.3),
   });
-  currentPage.drawText("WhatsApp: +91 919876543210", {
-    x: contactX,
-    y: currentY - 34,
-    size: 8,
-    font: fontRegular,
-    color: rgb(0.3, 0.3, 0.3),
-  });
+  const contact = getBusinessContact(options?.whatsappNumber);
+  let contactOffset = 34;
+  if (contact.isConfigured) {
+    currentPage.drawText(`WhatsApp: ${contact.display}`, {
+      x: contactX,
+      y: currentY - contactOffset,
+      size: 8,
+      font: fontRegular,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    contactOffset += 11;
+  }
 
   if (options?.gstin) {
     currentPage.drawText(`GSTIN: ${options.gstin}`, {
       x: contactX,
-      y: currentY - 45,
+      y: currentY - contactOffset,
       size: 8,
       font: fontBold,
       color: rgb(0.2, 0.2, 0.2),

@@ -68,7 +68,7 @@ const rawDbRow = {
   public_token: tokenA,
   name: "Dev Jashani",
   email: "collector@example.com",
-  phone: "9876543210",
+  phone: "9000000000",
   concept_description: "A mechanical mantis with wings crafted from energy drink cans.",
   preferred_can_types: "Monster & Red Bull",
   estimated_size: "45 cm height",
@@ -120,7 +120,7 @@ if (serialized.includes("PRIVATE NOTE") || serialized.includes("CONFIDENTIAL") |
   console.error("[CRITICAL FAIL] Internal notes or admin notes leaked to customer payload!");
   process.exit(1);
 }
-if (serialized.includes("9876543210") || serialized.includes("collector@example.com")) {
+if (serialized.includes("9000000000") || serialized.includes("collector@example.com")) {
   console.error("[CRITICAL FAIL] Customer phone or email leaked in public tracking payload!");
   process.exit(1);
 }

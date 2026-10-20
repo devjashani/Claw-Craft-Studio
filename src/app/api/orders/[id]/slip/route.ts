@@ -63,19 +63,21 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     let watermarkText = "CLAWCRAFT STUDIO";
     let gstin = "";
     let businessAddress = "";
+    let whatsappNumber = "";
 
     try {
       const supabase = createAdminClient();
       const { data: settings } = await supabase
         .from("site_settings")
         .select("key, value")
-        .in("key", ["watermark_text", "gstin", "business_address"]);
+        .in("key", ["watermark_text", "gstin", "business_address", "whatsapp_number"]);
 
       if (settings) {
         for (const s of settings) {
           if (s.key === "watermark_text" && typeof s.value === "string") watermarkText = s.value;
           if (s.key === "gstin" && typeof s.value === "string") gstin = s.value;
           if (s.key === "business_address" && typeof s.value === "string") businessAddress = s.value;
+          if (s.key === "whatsapp_number" && typeof s.value === "string") whatsappNumber = s.value;
         }
       }
     } catch {
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       gstin,
       businessAddress,
       siteUrl,
+      whatsappNumber,
       isDemo,
     });
 

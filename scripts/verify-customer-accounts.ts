@@ -74,7 +74,7 @@ const orderOfUserA: any = {
   id: "order-1111-2222-3333",
   order_number: "CC-2026-1001",
   user_id: "user-aaaa-1111",
-  customer_phone: "9876543210",
+  customer_phone: "9000000000",
   public_token: "tok_secret_token_abc_123",
 };
 
@@ -174,10 +174,10 @@ function validateIndianMobile(phone: string): boolean {
   return clean.length === 10 && /^[6-9]\d{9}$/.test(clean);
 }
 
-assert(validateIndianMobile("9876543210") === true, "Valid 10-digit Indian mobile 9876543210 passes");
+assert(validateIndianMobile("9000000000") === true, "Valid 10-digit Indian mobile 9000000000 passes");
 assert(validateIndianMobile("+91 8123456789") === true, "Valid formatted Indian mobile passes");
 assert(validateIndianMobile("12345") === false, "Short phone 12345 is rejected");
-assert(validateIndianMobile("987654321012") === false, "Long phone is rejected");
+assert(validateIndianMobile("900000000012") === false, "Long phone is rejected");
 assert(validateIndianMobile("0123456789") === false, "Number starting with 0 is rejected for Indian mobile");
 
 // Energy Drink Duration Tier calculation tests

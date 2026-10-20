@@ -10,6 +10,22 @@ export interface StatusMeta {
 }
 
 /**
+ * Target Budget Options for custom commission inquiries (Lowest to Highest)
+ */
+export const CUSTOM_REQUEST_BUDGET_OPTIONS = [
+  "Below ₹2,000",
+  "₹2,000 – ₹5,000",
+  "₹5,000 – ₹10,000",
+  "₹10,000 – ₹20,000",
+  "₹20,000 – ₹40,000",
+  "₹40,000+ (Gallery Masterpiece)",
+] as const;
+
+export type CustomRequestBudgetOption = (typeof CUSTOM_REQUEST_BUDGET_OPTIONS)[number];
+
+export const DEFAULT_BUDGET_OPTION: CustomRequestBudgetOption = "₹5,000 – ₹10,000";
+
+/**
  * Standard customer-facing lifecycle stages:
  * 0: Submitted (new)
  * 1: Under review (reviewing)

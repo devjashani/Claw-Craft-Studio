@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { Order, OrderItem } from "@/types/shop";
 import { formatINR } from "@/lib/utils";
+import { getBusinessContact } from "@/lib/contact";
 
 const resendApiKey = process.env.RESEND_API_KEY || "re_placeholderKey";
 export const resend = new Resend(resendApiKey);
@@ -119,6 +120,13 @@ export async function sendCustomerOrderConfirmationEmail({
             <p style="margin: 10px 0 0; font-size: 11px; color: #8E959F; font-family: monospace;">
               Live order tracking: <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in"}/order/${order.id}?t=${order.public_token || ""}" style="color: #B8FF1F; text-decoration: underline;">clawcraft.in/order/${order.order_number}</a>
             </p>
+            ${
+              getBusinessContact().isConfigured
+                ? `<p style="margin: 12px 0 0; font-size: 11px; color: #8E959F; font-family: monospace;">
+                    Questions about your order? <a href="${getBusinessContact().waLink(`Hello CLAWCRAFT, question regarding order ${order.order_number}`)}" style="color: #B8FF1F; text-decoration: underline;">WhatsApp: ${getBusinessContact().display}</a>
+                  </p>`
+                : ""
+            }
           </div>
 
           <div style="padding-top: 16px; border-top: 1px solid #22262E; font-size: 11px; color: #8E959F; line-height: 1.5;">
@@ -238,6 +246,13 @@ export async function sendShippingUpdateEmail({
             <p style="margin: 4px 0; color: #8E959F; font-size: 13px;">TRACKING / AWB: <strong style="color: #B8FF1F; font-family: monospace;">${trackingNumber}</strong></p>
           </div>
           ${trackingLinkHtml}
+          ${
+            getBusinessContact().isConfigured
+              ? `<p style="margin: 16px 0 0; font-size: 12px; color: #8E959F; font-family: monospace;">
+                  Need assistance with delivery? <a href="${getBusinessContact().waLink(`Delivery inquiry for order ${order.order_number}`)}" style="color: #B8FF1F; text-decoration: underline;">WhatsApp: ${getBusinessContact().display}</a>
+                </p>`
+              : ""
+          }
           <p style="color: #8E959F; font-size: 12px; margin-top: 30px; border-top: 1px solid #22262E; padding-top: 16px;">
             Handcrafted decorative display piece made from cleaned, empty cans. Not a toy. Not a weapon. Not for children.
           </p>

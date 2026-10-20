@@ -526,7 +526,7 @@ export default function CheckoutPage() {
                         maxLength={10}
                         value={formData.phone}
                         onChange={handleChange}
-                        placeholder="9876543210"
+                        placeholder="10-digit mobile number"
                         className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
                       />
                       {errors.phone && (
@@ -580,9 +580,12 @@ export default function CheckoutPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-4 items-start">
                     <div>
-                      <label className="block text-steel uppercase mb-1">
+                      <label
+                        className="block text-steel uppercase mb-1 whitespace-nowrap truncate"
+                        title="City *"
+                      >
                         City *
                       </label>
                       <input
@@ -591,7 +594,7 @@ export default function CheckoutPage() {
                         value={formData.city}
                         onChange={handleChange}
                         placeholder="Mumbai"
-                        className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
+                        className="w-full h-[42px] bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
                       />
                       {errors.city && (
                         <p className="text-blood text-[11px] mt-1 flex items-center gap-1">
@@ -601,7 +604,10 @@ export default function CheckoutPage() {
                     </div>
 
                     <div>
-                      <label className="block text-steel uppercase mb-1">
+                      <label
+                        className="block text-steel uppercase mb-1 whitespace-nowrap truncate"
+                        title="State *"
+                      >
                         State *
                       </label>
                       <input
@@ -610,7 +616,7 @@ export default function CheckoutPage() {
                         value={formData.state}
                         onChange={handleChange}
                         placeholder="Maharashtra"
-                        className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
+                        className="w-full h-[42px] bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
                       />
                       {errors.state && (
                         <p className="text-blood text-[11px] mt-1 flex items-center gap-1">
@@ -620,17 +626,21 @@ export default function CheckoutPage() {
                     </div>
 
                     <div>
-                      <label className="block text-steel uppercase mb-1">
-                        PIN Code *
+                      <label
+                        className="block text-steel uppercase mb-1 whitespace-nowrap truncate"
+                        title="PIN CODE *"
+                      >
+                        PIN CODE *
                       </label>
                       <input
                         type="text"
+                        inputMode="numeric"
                         name="pincode"
                         maxLength={6}
                         value={formData.pincode}
                         onChange={handleChange}
-                        placeholder="400001"
-                        className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none"
+                        placeholder="6 digits"
+                        className="w-full h-[42px] bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:border-acid focus:outline-none font-mono"
                       />
                       {errors.pincode && (
                         <p className="text-blood text-[11px] mt-1 flex items-center gap-1">

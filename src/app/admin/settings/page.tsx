@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { SiteSettingsMap } from "@/lib/admin/admin-data";
+import { validateIndianMobile } from "@/lib/contact";
 import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
@@ -32,7 +33,8 @@ export default function AdminSettingsPage() {
   const [announcementText, setAnnouncementText] = useState(
     "HANDCRAFTED FROM CLEANED RECYCLED CANS • FREE PAN-INDIA SHIPPING ON ORDERS ABOVE ₹2,999"
   );
-  const [whatsappNumber, setWhatsappNumber] = useState("919876543210");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [supportHours, setSupportHours] = useState("");
   const [adminNotificationEmail, setAdminNotificationEmail] = useState("studio@clawcraft.in");
   const [businessAddress, setBusinessAddress] = useState("");
   const [gstin, setGstin] = useState("");
@@ -50,7 +52,8 @@ export default function AdminSettingsPage() {
           setEnableCod(s.enable_cod);
           setAnnouncementEnabled(s.announcement_bar_enabled);
           setAnnouncementText(s.announcement_bar_text);
-          setWhatsappNumber(s.whatsapp_number);
+          setWhatsappNumber(s.whatsapp_number || "");
+          setSupportHours(s.support_hours || "");
           setAdminNotificationEmail(s.admin_notification_email);
           setBusinessAddress(s.business_address || "");
           setGstin(s.gstin || "");
@@ -71,6 +74,15 @@ export default function AdminSettingsPage() {
     setSaving(true);
 
     try {
+      if (whatsappNumber.trim()) {
+        const check = validateIndianMobile(whatsappNumber.trim());
+        if (!check.isValid) {
+          throw new Error(
+            "Invalid WhatsApp number. Please enter a valid 10-digit Indian mobile number (e.g. 91XXXXXXXXXX or 10 digits starting 6-9)."
+          );
+        }
+      }
+
       const payload: Partial<SiteSettingsMap> = {
         flat_shipping_paise: Math.round(Number(flatShippingRupees) * 100),
         free_shipping_threshold_paise: Math.round(Number(freeShippingThresholdRupees) * 100),
@@ -78,6 +90,7 @@ export default function AdminSettingsPage() {
         announcement_bar_enabled: announcementEnabled,
         announcement_bar_text: announcementText.trim(),
         whatsapp_number: whatsappNumber.trim(),
+        support_hours: supportHours.trim(),
         admin_notification_email: adminNotificationEmail.trim(),
         business_address: businessAddress.trim(),
         gstin: gstin.trim(),
@@ -238,11 +251,11 @@ export default function AdminSettingsPage() {
                 type="text"
                 value={whatsappNumber}
                 onChange={(e) => setWhatsappNumber(e.target.value)}
-                placeholder="919876543210"
+                placeholder="91XXXXXXXXXX"
                 className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
               />
               <span className="text-[10px] text-muted font-mono mt-1 block">
-                Include country code (e.g. 91 for India).
+                Indian 10-digit mobile with country code (e.g. 91XXXXXXXXXX).
               </span>
             </div>
 
@@ -261,6 +274,22 @@ export default function AdminSettingsPage() {
                 Receives order alerts and commission inquiries.
               </span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase text-muted mb-1">
+              Studio Support & Artisan Hours (Optional)
+            </label>
+            <input
+              type="text"
+              value={supportHours}
+              onChange={(e) => setSupportHours(e.target.value)}
+              placeholder="e.g. Mon – Sat: 10 AM – 8 PM IST"
+              className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+            />
+            <span className="text-[10px] text-muted font-mono mt-1 block">
+              Displayed on public Contact page if configured. Hidden when empty (no hours are invented).
+            </span>
           </div>
         </div>
 

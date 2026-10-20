@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { Truck, ShieldCheck, Clock, MapPin, Box } from "lucide-react";
+import { getBusinessContact } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Shipping & Delivery Policy | CLAWCRAFT Studio",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function ShippingPolicyPage() {
+  const contact = getBusinessContact();
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
@@ -97,6 +99,30 @@ export default function ShippingPolicyPage() {
             <h2 className="font-heading text-lg uppercase text-bone">6. Armor Packaging Guarantee</h2>
             <p>
               We understand that aluminum can sculptures are delicate display pieces. We build customized multi-ply rigid corrugated armor cartons with high-density foam suspension cores for every order. In the unlikely event that your package sustains outer damage during courier handling, refer to our <Link href="/policies/refund-cancellation" className="text-acid hover:underline">Refund & Cancellation Policy</Link> for prompt resolution.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="font-heading text-lg uppercase text-bone">7. Shipping Questions</h2>
+            <p>
+              Need to check remote PIN code serviceability or coordinate an urgent delivery? Reach out directly via our{" "}
+              <Link href="/contact" className="text-acid hover:underline">
+                Contact Desk
+              </Link>
+              {contact.isConfigured ? (
+                <>
+                  {" "}or message our workshop on WhatsApp at{" "}
+                  <a
+                    href={contact.waLink("Hi Clawcraft Studio! I have a shipping / delivery question.")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-acid hover:underline"
+                  >
+                    <strong>{contact.display}</strong>
+                  </a>
+                </>
+              ) : null}
+              .
             </p>
           </section>
         </div>

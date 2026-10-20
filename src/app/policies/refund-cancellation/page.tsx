@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { ShieldAlert, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { getBusinessContact } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Refund & Cancellation Policy | CLAWCRAFT Studio",
@@ -11,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default function RefundCancellationPage() {
+  const contact = getBusinessContact();
+
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
@@ -37,7 +40,14 @@ export default function RefundCancellationPage() {
               We want you to be completely confident in your purchase. You may cancel your order free of charge at any time <strong>prior to courier dispatch</strong>:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-muted">
-              <li>To cancel, message us on WhatsApp at <strong>+91 98765 43210</strong> or email <strong>orders@clawcraft.in</strong> quoting your order number (e.g. <code>CC-2026-XXXX</code>).</li>
+              <li>
+                To cancel, {contact.isConfigured ? (
+                  <>message us on WhatsApp at <a href={contact.waLink("Hi Clawcraft Studio! I want to cancel my order")} target="_blank" rel="noopener noreferrer" className="text-acid hover:underline"><strong>{contact.display}</strong></a> or email </>
+                ) : (
+                  <>email </>
+                )}
+                <strong>orders@clawcraft.in</strong> quoting your order number (e.g. <code>CC-2026-XXXX</code>).
+              </li>
               <li>Upon confirmation, a 100% refund is initiated immediately to your original payment method via Razorpay.</li>
               <li>Once an order has been handed over to the courier partner and an AWB has been issued, it cannot be canceled in transit.</li>
             </ul>
@@ -105,7 +115,23 @@ export default function RefundCancellationPage() {
             </p>
             <div className="p-4 bg-ash border border-subtle rounded text-xs font-mono space-y-1">
               <p className="text-bone">CLAWCRAFT Support Desk</p>
-              <p className="text-muted">WhatsApp: +91 98765 43210</p>
+              {contact.isConfigured && (
+                <p className="text-muted">
+                  WhatsApp:{" "}
+                  <a
+                    href={contact.waLink("Hi Clawcraft Studio! I need assistance with an order.")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-acid hover:underline"
+                  >
+                    {contact.display}
+                  </a>
+                  {" • "}
+                  <a href={contact.telLink} className="text-bone hover:underline">
+                    Call
+                  </a>
+                </p>
+              )}
               <p className="text-muted">Email: orders@clawcraft.in</p>
             </div>
           </section>

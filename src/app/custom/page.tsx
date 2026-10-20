@@ -12,6 +12,11 @@ import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { useToast } from "@/components/ui/toast";
 import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
 import {
+  CUSTOM_REQUEST_BUDGET_OPTIONS,
+  DEFAULT_BUDGET_OPTION,
+} from "@/lib/custom-requests/constants";
+import { getBusinessContact } from "@/lib/contact";
+import {
   Sparkles,
   ArrowRight,
   Upload,
@@ -33,13 +38,14 @@ import {
 export default function CustomBuildsPage() {
   const { showToast } = useToast();
 
+  const contact = getBusinessContact();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [concept, setConcept] = useState("");
   const [preferredCans, setPreferredCans] = useState("");
   const [estimatedSize, setEstimatedSize] = useState("Desktop sculpture (30–50 cm)");
-  const [budget, setBudget] = useState("₹5,000 – ₹10,000");
+  const [budget, setBudget] = useState<string>(DEFAULT_BUDGET_OPTION);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
 
   // Direct upload states
@@ -59,6 +65,7 @@ export default function CustomBuildsPage() {
   const [submittedRefId, setSubmittedRefId] = useState("");
   const [submittedTrackUrl, setSubmittedTrackUrl] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
 
   const processUpload = async (file: File) => {
     // 1. Check size limit (> 10 MB)
@@ -260,6 +267,7 @@ export default function CustomBuildsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setSubmitErrorMessage(null);
 
     try {
       const res = await fetch("/api/custom-requests", {
@@ -304,21 +312,23 @@ export default function CustomBuildsPage() {
       setSubmitted(true);
       showToast("Commission proposal recorded in the studio!", "success");
     } catch (err: unknown) {
-      showToast(
+      const msg =
         err instanceof Error
           ? err.message
-          : "We could not save your request, please try again or message us on WhatsApp",
-        "error"
-      );
+          : "We could not save your request. Please try again or message our studio.";
+      setSubmitErrorMessage(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
   };
 
   const cleanPhone = submittedPhone.replace(/\D/g, "");
-  const whatsappFollowUpUrl = `https://wa.me/919876543210?text=${encodeURIComponent(
-    `Hello CLAWCRAFT Studio! I just submitted commission proposal [${submittedRefId}] under the name ${name} (+91 ${cleanPhone}). Looking forward to discussing the design!`
-  )}`;
+  const whatsappFollowUpUrl = contact.isConfigured
+    ? contact.waLink(
+        `Hello CLAWCRAFT Studio! Ask about request ${submittedRefId}: commission proposal under ${name} (+91 ${cleanPhone}).`
+      )
+    : "";
 
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
@@ -419,15 +429,17 @@ export default function CustomBuildsPage() {
                 <span>Track This Request</span>
               </Link>
 
-              <a
-                href={whatsappFollowUpUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors shadow-lg"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Chat Directly on WhatsApp</span>
-              </a>
+              {contact.isConfigured && (
+                <a
+                  href={whatsappFollowUpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors shadow-lg"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Ask about request {submittedRefId}</span>
+                </a>
+              )}
 
               <Link
                 href="/shop"
@@ -452,6 +464,29 @@ export default function CustomBuildsPage() {
                 Zero commitment required. We discuss sketches and pricing before any production deposit.
               </p>
             </div>
+
+            {submitErrorMessage && (
+              <div className="p-4 bg-red-950/40 border border-red-500/40 rounded text-xs font-mono text-red-200 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">{submitErrorMessage}</p>
+                </div>
+                {contact.isConfigured && (
+                  <div className="pl-6">
+                    <a
+                      href={contact.waLink(`Hi CLAWCRAFT Studio, I experienced an issue submitting my custom build proposal on the website.`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-acid hover:underline inline-flex items-center gap-1.5 font-bold"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Message us on WhatsApp ({contact.display})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Invisible honeypot field for bot prevention */}
@@ -511,7 +546,7 @@ export default function CustomBuildsPage() {
                     maxLength={10}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                    placeholder="9876543210"
+                    placeholder="10-digit mobile number"
                     className="w-full pl-12 pr-3.5 py-2.5 bg-void border border-subtle text-xs text-bone font-mono placeholder:text-muted/50 focus:border-acid focus:outline-none rounded"
                   />
                 </div>
@@ -583,12 +618,11 @@ export default function CustomBuildsPage() {
                     onChange={(e) => setBudget(e.target.value)}
                     className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none rounded"
                   >
-                    <option value="₹5,000 – ₹10,000">₹5,000 – ₹10,000</option>
-                    <option value="₹10,000 – ₹20,000">₹10,000 – ₹20,000</option>
-                    <option value="₹20,000 – ₹40,000">₹20,000 – ₹40,000</option>
-                    <option value="₹40,000+ (Gallery Masterpiece)">
-                      ₹40,000+ (Gallery Masterpiece)
-                    </option>
+                    {CUSTOM_REQUEST_BUDGET_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

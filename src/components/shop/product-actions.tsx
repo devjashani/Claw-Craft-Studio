@@ -55,11 +55,10 @@ export function ProductActions({ product }: ProductActionsProps) {
       : product.id;
 
     const displayTitle = selectedVariant
-      ? `${product.title} (${selectedVariant.label}${
-          selectedOption && selectedVariant.options && selectedVariant.options.length > 1
-            ? ` - ${selectedOption}`
-            : ""
-        })`
+      ? `${product.title} (${selectedVariant.label}${selectedOption && selectedVariant.options && selectedVariant.options.length > 1
+        ? ` - ${selectedOption}`
+        : ""
+      })`
       : product.title;
 
     addItem(
@@ -78,8 +77,8 @@ export function ProductActions({ product }: ProductActionsProps) {
           selectedVariant?.options && selectedVariant.options.length > 1
             ? selectedOption
             : selectedVariant?.label === "Pack of 4"
-            ? "One of each colour"
-            : undefined,
+              ? "One of each colour"
+              : undefined,
       },
       quantity
     );
@@ -99,11 +98,10 @@ export function ProductActions({ product }: ProductActionsProps) {
       : product.id;
 
     const displayTitle = selectedVariant
-      ? `${product.title} (${selectedVariant.label}${
-          selectedOption && selectedVariant.options && selectedVariant.options.length > 1
-            ? ` - ${selectedOption}`
-            : ""
-        })`
+      ? `${product.title} (${selectedVariant.label}${selectedOption && selectedVariant.options && selectedVariant.options.length > 1
+        ? ` - ${selectedOption}`
+        : ""
+      })`
       : product.title;
 
     addItem(
@@ -122,8 +120,8 @@ export function ProductActions({ product }: ProductActionsProps) {
           selectedVariant?.options && selectedVariant.options.length > 1
             ? selectedOption
             : selectedVariant?.label === "Pack of 4"
-            ? "One of each colour"
-            : undefined,
+              ? "One of each colour"
+              : undefined,
       },
       quantity
     );
@@ -157,11 +155,10 @@ export function ProductActions({ product }: ProductActionsProps) {
                     key={v.id}
                     type="button"
                     onClick={() => handleVariantChange(v)}
-                    className={`p-3 rounded-sm border text-left font-mono transition-all ${
-                      isSelected
+                    className={`p-3 rounded-sm border text-left font-mono transition-all ${isSelected
                         ? "border-acid bg-acid/15 text-bone shadow-acid"
                         : "border-steel/20 bg-void/50 text-steel hover:text-bone hover:border-steel/50"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs uppercase">{v.label}</span>
@@ -206,11 +203,10 @@ export function ProductActions({ product }: ProductActionsProps) {
                         key={opt}
                         type="button"
                         onClick={() => setSelectedOption(opt)}
-                        className={`px-3.5 py-1.5 rounded-sm font-mono text-xs uppercase tracking-wider border transition-all ${
-                          isOptSelected
+                        className={`px-3.5 py-1.5 rounded-sm font-mono text-xs uppercase tracking-wider border transition-all ${isOptSelected
                             ? "border-acid bg-acid text-void font-bold shadow-acid"
                             : "border-steel/20 bg-void/60 text-steel hover:text-bone hover:border-steel/50"
-                        }`}
+                          }`}
                       >
                         {opt}
                       </button>
@@ -278,9 +274,8 @@ export function ProductActions({ product }: ProductActionsProps) {
           size="lg"
           onClick={handleAddToCart}
           disabled={currentStock <= 0}
-          className={`flex-1 h-12 transition-all duration-300 ${
-            isAdded ? "border-acid bg-acid text-void shadow-[0_0_20px_#B8FF1F]" : ""
-          }`}
+          className={`flex-1 h-12 transition-all duration-300 ${isAdded ? "border-acid bg-acid text-void shadow-[0_0_20px_#B8FF1F]" : ""
+            }`}
         >
           {isAdded ? (
             <>

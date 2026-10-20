@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resend } from "@/lib/resend";
 import { CustomRequestStatus } from "@/types/database.types";
 import { sendCustomRequestReceivedEmail } from "@/lib/custom-requests/email";
+import { CUSTOM_REQUEST_BUDGET_OPTIONS } from "@/lib/custom-requests/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -91,9 +92,16 @@ const customRequestSchema = z.object({
     .transform((val) => (val ? sanitizeText(val).slice(0, 100) : null)),
   budget_inr: z
     .string()
+    .transform(sanitizeText)
+    .refine(
+      (val) => !val || (CUSTOM_REQUEST_BUDGET_OPTIONS as readonly string[]).includes(val),
+      {
+        message: "Please select a valid budget range.",
+      }
+    )
     .optional()
     .nullable()
-    .transform((val) => (val ? sanitizeText(val).slice(0, 100) : null)),
+    .transform((val) => val || null),
   reference_image_urls: z
     .array(z.string().url("Invalid image URL"))
     .max(10, "Maximum 10 reference images allowed.")
@@ -184,7 +192,7 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json(
         {
-          error: "We could not save your request, please try again or message us on WhatsApp",
+          error: "We could not save your request. Please try again or reach our studio directly.",
           code: "SERVER_CONFIG_ERROR",
         },
         { status: 500 }
@@ -240,7 +248,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "We could not save your request, please try again or message us on WhatsApp",
+          error: "We could not save your request. Please try again or reach our studio directly.",
           code: error?.code || "DATABASE_INSERT_FAILED",
         },
         { status: 500 }
@@ -346,7 +354,7 @@ export async function POST(req: NextRequest) {
     console.error("[Custom Request Route Exception]", error);
     return NextResponse.json(
       {
-        error: "We could not save your request, please try again or message us on WhatsApp",
+        error: "We could not save your request. Please try again or reach our studio directly.",
         code: "SERVER_EXCEPTION",
       },
       { status: 500 }

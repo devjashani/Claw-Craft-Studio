@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
+import { getBusinessContact } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Terms of Service | CLAWCRAFT Studio",
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function TermsOfServicePage() {
+  const contact = getBusinessContact();
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
@@ -101,7 +103,25 @@ export default function TermsOfServicePage() {
               7. Contact Us
             </h2>
             <p>
-              For legal inquiries or terms clarification, please email <strong>legal@clawcraft.in</strong> or write to CLAWCRAFT Studio, Bengaluru, Karnataka, India.
+              For legal inquiries or terms clarification, please email <strong>legal@clawcraft.in</strong>
+              {contact.isConfigured ? (
+                <>
+                  , chat via WhatsApp on{" "}
+                  <a
+                    href={contact.waLink("Hi Clawcraft Studio! I have a question regarding terms of service.")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-acid hover:underline"
+                  >
+                    <strong>{contact.display}</strong>
+                  </a>
+                </>
+              ) : null}
+              , or reach us via our{" "}
+              <Link href="/contact" className="text-acid hover:underline">
+                Contact Desk
+              </Link>
+              .
             </p>
           </section>
         </div>

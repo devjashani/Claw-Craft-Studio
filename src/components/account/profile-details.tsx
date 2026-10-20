@@ -164,7 +164,7 @@ export function ProfileDetails({
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                placeholder="9876543210"
+                placeholder="10-digit mobile number"
                 maxLength={10}
                 className="w-full bg-void border border-steel/30 rounded-sm pl-12 pr-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none font-mono"
               />

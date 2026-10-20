@@ -419,7 +419,7 @@ export function SavedAddresses({ userId }: SavedAddressesProps) {
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                    placeholder="9876543210"
+                    placeholder="10-digit mobile number"
                     maxLength={10}
                     className="w-full bg-void border border-steel/30 rounded-sm pl-12 pr-3 py-2 text-xs text-bone focus:border-acid focus:outline-none font-mono"
                   />
@@ -453,25 +453,32 @@ export function SavedAddresses({ userId }: SavedAddressesProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-3 items-start">
                 <div>
-                  <label className="block text-xs font-mono uppercase text-steel mb-1">
-                    PIN Code (6 digits) *
+                  <label
+                    className="block text-xs font-mono uppercase text-steel mb-1 whitespace-nowrap truncate"
+                    title="PIN CODE *"
+                  >
+                    PIN CODE *
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     required
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-                    placeholder="400001"
+                    placeholder="6 digits"
                     maxLength={6}
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none font-mono"
+                    className="w-full h-[38px] bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-steel mb-1">
-                    City *
+                  <label
+                    className="block text-xs font-mono uppercase text-steel mb-1 whitespace-nowrap truncate"
+                    title="CITY *"
+                  >
+                    CITY *
                   </label>
                   <input
                     type="text"
@@ -479,13 +486,16 @@ export function SavedAddresses({ userId }: SavedAddressesProps) {
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     placeholder="Mumbai"
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
+                    className="w-full h-[38px] bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-steel mb-1">
-                    State *
+                  <label
+                    className="block text-xs font-mono uppercase text-steel mb-1 whitespace-nowrap truncate"
+                    title="STATE *"
+                  >
+                    STATE *
                   </label>
                   <input
                     type="text"
@@ -493,7 +503,7 @@ export function SavedAddresses({ userId }: SavedAddressesProps) {
                     value={stateVal}
                     onChange={(e) => setStateVal(e.target.value)}
                     placeholder="Maharashtra"
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
+                    className="w-full h-[38px] bg-void border border-steel/30 rounded-sm px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
                   />
                 </div>
               </div>

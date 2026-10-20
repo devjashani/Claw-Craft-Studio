@@ -98,7 +98,8 @@ values
   ('free_shipping_threshold_paise', '299900'::jsonb, 'Order total threshold for free shipping (Rs 2,999)'),
   ('cod_enabled', 'false'::jsonb, 'Cash on Delivery toggle (default disabled)'),
   ('announcement_text', '"LIMITED DROP: HANDCRAFTED RECYCLED CAN SCULPTURES • PAN-INDIA SHIPPING"'::jsonb, 'Header marquee announcement'),
-  ('support_phone', '"919876543210"'::jsonb, 'Studio support WhatsApp/Call number'),
+  ('whatsapp_number', '"919000000000"'::jsonb, 'Studio support WhatsApp/Call number'),
+  ('support_phone', '"919000000000"'::jsonb, 'Studio support WhatsApp/Call number (legacy alias)'),
   ('support_email', '"studio@clawcraft.in"'::jsonb, 'Studio customer service email')
 on conflict (key) do update set value = excluded.value;
 

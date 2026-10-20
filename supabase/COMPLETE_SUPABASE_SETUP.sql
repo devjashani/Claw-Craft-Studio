@@ -740,7 +740,7 @@ VALUES
   ('enable_cod', 'false'::jsonb, 'Cash on delivery toggle'),
   ('announcement_bar_enabled', 'true'::jsonb, 'Announcement bar active state'),
   ('announcement_bar_text', '"HANDCRAFTED FROM CLEANED RECYCLED CANS • FREE PAN-INDIA SHIPPING ON ORDERS ABOVE ₹2,999"'::jsonb, 'Header marquee text'),
-  ('whatsapp_number', '"919876543210"'::jsonb, 'Studio support phone/WhatsApp'),
+  ('whatsapp_number', '"919000000000"'::jsonb, 'Studio support phone/WhatsApp'),
   ('admin_notification_email', '"studio@clawcraft.in"'::jsonb, 'Admin alert notification email'),
   ('watermark_text', '"CLAWCRAFT STUDIO"'::jsonb, 'Diagonal receipt watermark text')
 ON CONFLICT (key) DO NOTHING;

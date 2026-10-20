@@ -21,6 +21,7 @@ import {
   XCircle,
   ExternalLink,
 } from "lucide-react";
+import { getBusinessContact } from "@/lib/contact";
 
 export function CustomRequestStepper({ status }: { status: string }) {
   const meta = getCustomRequestStatusMeta(status);
@@ -171,9 +172,12 @@ export function CustomRequestTimeline({ events }: { events: CustomerTimelineEven
 }
 
 export function CustomRequestSpecs({ request }: { request: CustomerCustomRequestDetail }) {
-  const whatsappUrl = `https://wa.me/919876543210?text=${encodeURIComponent(
-    `Hello CLAWCRAFT Studio, I'm checking in on my custom build request [${request.ref_code}].`
-  )}`;
+  const contact = getBusinessContact();
+  const whatsappUrl = contact.isConfigured
+    ? contact.waLink(
+        `Hello CLAWCRAFT Studio, I'm checking in on my custom build request [${request.ref_code}].`
+      )
+    : "";
 
   return (
     <div className="space-y-6">
@@ -253,17 +257,19 @@ export function CustomRequestSpecs({ request }: { request: CustomerCustomRequest
       )}
 
       {/* WhatsApp Help CTA */}
-      <div className="pt-2 flex justify-start">
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-mono text-xs uppercase font-bold tracking-wider rounded transition-colors shadow-md"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          <span>Ask About This Request (WhatsApp)</span>
-        </a>
-      </div>
+      {contact.isConfigured && (
+        <div className="pt-2 flex justify-start">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-mono text-xs uppercase font-bold tracking-wider rounded transition-colors shadow-md"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Ask about request {request.ref_code}</span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }

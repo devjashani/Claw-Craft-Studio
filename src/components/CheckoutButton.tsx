@@ -27,7 +27,7 @@ export default function CheckoutButton({
   productName,
   customerName = "Collector",
   email = "collector@example.com",
-  phone = "9876543210",
+  phone = "9000000000",
   address = "Studio Delivery",
   city = "Jaipur",
   state = "Rajasthan",

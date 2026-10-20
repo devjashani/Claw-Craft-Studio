@@ -19,7 +19,9 @@ import {
   CreditCard,
   AlertTriangle,
   RotateCcw,
+  MessageSquare,
 } from "lucide-react";
+import { getBusinessContact } from "@/lib/contact";
 
 interface OrderPageProps {
   params: { id: string };
@@ -53,6 +55,8 @@ export default async function OrderConfirmationPage({
   if (!access.allowed) {
     return <OrderAccessGate orderIdentifier={order.order_number || id} />;
   }
+
+  const contact = getBusinessContact();
 
   const isPaid = order.payment_status === "paid" || order.status === "paid";
   const isPending = order.payment_status === "pending_payment" || order.status === "pending_payment";
@@ -178,12 +182,30 @@ export default async function OrderConfirmationPage({
           )}
         </div>
 
-        {/* Action Bar (Download Receipt PDF & Print) */}
+        {/* Action Bar (Download Receipt PDF & Print & WhatsApp Support) */}
         <div className="p-4 rounded-sm border border-steel/20 bg-ash/50 flex flex-wrap items-center justify-between gap-4">
           <div className="font-mono text-xs text-steel">
             Official studio proof of purchase & transaction summary
           </div>
-          <OrderActions order={order} token={token || order.public_token} />
+          <div className="flex flex-wrap items-center gap-3">
+            {contact.isConfigured && (
+              <a
+                href={contact.waLink(`Hi Clawcraft Studio! Need help with this order #${order.order_number}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ClawButton
+                  variant="secondary"
+                  size="sm"
+                  className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-void font-mono text-xs"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                  Need help with this order?
+                </ClawButton>
+              </a>
+            )}
+            <OrderActions order={order} token={token || order.public_token} />
+          </div>
         </div>
 
         {/* Status Stepper */}

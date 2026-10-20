@@ -3,7 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle } from "lucide-react";
-import { siteContent } from "@/content/site";
+import { getBusinessContact } from "@/lib/contact";
 
 export function FloatingWhatsApp() {
   const pathname = usePathname();
@@ -12,13 +12,14 @@ export function FloatingWhatsApp() {
     return null;
   }
 
-  const rawNumber =
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || siteContent.socials.whatsapp;
-  const sanitizedNumber = rawNumber.replace(/[^0-9]/g, "");
-  const defaultMessage = encodeURIComponent(
-    "Hi Clawcraft Studio! I'm interested in your handcrafted energy can sculptures."
-  );
-  const whatsappUrl = `https://wa.me/${sanitizedNumber}?text=${defaultMessage}`;
+  const contact = getBusinessContact();
+  if (!contact.isConfigured) {
+    return null;
+  }
+
+  const defaultMessage =
+    "Hi Clawcraft Studio! I'm interested in your handcrafted energy can sculptures.";
+  const whatsappUrl = contact.waLink(defaultMessage);
 
   return (
     <aside

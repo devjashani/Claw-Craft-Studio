@@ -16,9 +16,12 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react";
+import { getBusinessContact } from "@/lib/contact";
 
 export default function TrackOrderPage() {
+  const contact = getBusinessContact();
   const [orderIdentifier, setOrderIdentifier] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -140,7 +143,7 @@ export default function TrackOrderPage() {
               <input
                 type="tel"
                 maxLength={10}
-                placeholder="9876543210"
+                placeholder="10-digit mobile number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
                 className="w-full bg-void border border-steel/30 rounded-sm px-3 py-2.5 text-bone focus:outline-none focus:border-acid"
@@ -291,6 +294,29 @@ export default function TrackOrderPage() {
                 ))}
               </div>
             </div>
+
+            {/* Need Help CTA */}
+            {contact.isConfigured && (
+              <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-sm border border-steel/20 bg-ash/60 font-mono text-xs">
+                <span className="text-steel">
+                  Questions about shipment transit or delivery schedule?
+                </span>
+                <a
+                  href={contact.waLink(`Hi Clawcraft Studio! Need help with this order #${result.order.order_number}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ClawButton
+                    variant="secondary"
+                    size="sm"
+                    className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-void"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                    Need help with this order?
+                  </ClawButton>
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

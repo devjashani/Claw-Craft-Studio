@@ -32,6 +32,15 @@ function sanitizeText(input) {
   return input.replace(/<[^>]*>?/gm, "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
 }
 
+const CUSTOM_REQUEST_BUDGET_OPTIONS = [
+  "Below ₹2,000",
+  "₹2,000 – ₹5,000",
+  "₹5,000 – ₹10,000",
+  "₹10,000 – ₹20,000",
+  "₹20,000 – ₹40,000",
+  "₹40,000+ (Gallery Masterpiece)",
+];
+
 const customRequestSchema = z.object({
   name: z.string().transform(sanitizeText).pipe(z.string().min(2, "Name min 2").max(80)),
   email: z.string().transform(sanitizeText).pipe(z.string().email("Invalid email")),
@@ -39,7 +48,18 @@ const customRequestSchema = z.object({
   concept_description: z.string().transform(sanitizeText).pipe(z.string().min(20, "Concept min 20").max(2000)),
   preferred_can_types: z.string().optional().nullable().transform((v) => (v ? sanitizeText(v).slice(0, 200) : null)),
   estimated_size: z.string().optional().nullable().transform((v) => (v ? sanitizeText(v).slice(0, 100) : null)),
-  budget_inr: z.string().optional().nullable().transform((v) => (v ? sanitizeText(v).slice(0, 100) : null)),
+  budget_inr: z
+    .string()
+    .transform(sanitizeText)
+    .refine(
+      (val) => !val || CUSTOM_REQUEST_BUDGET_OPTIONS.includes(val),
+      {
+        message: "Please select a valid budget range.",
+      }
+    )
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
   reference_image_urls: z.array(z.string().url()).max(10).optional().default([]),
   honeypot: z.string().optional().nullable(),
 });
@@ -58,11 +78,11 @@ async function runVerification() {
   const validPayload = {
     name: "Aarav Sharma",
     email: "aarav.sharma@example.com",
-    phone: "9876543210",
+    phone: "9000000000",
     concept_description: "Futuristic robotic mantis crafted from Monster Energy Ultra Black aluminum cans.",
     preferred_can_types: "Monster Ultra Black, Monster Zero",
     estimated_size: "Desktop (35 cm)",
-    budget_inr: "₹18,000",
+    budget_inr: "₹2,000 – ₹5,000",
     reference_image_urls: ["https://example.com/mantis-sketch.jpg"],
     status: "new",
   };
@@ -114,6 +134,11 @@ async function runVerification() {
       payload: { ...validPayload, concept_description: "Too short" },
       expectedErrorField: "concept_description",
     },
+    {
+      name: "Unknown budget value outside allowed options ('₹99,999')",
+      payload: { ...validPayload, budget_inr: "₹99,999" },
+      expectedErrorField: "budget_inr",
+    },
   ];
 
   for (const tc of testCases) {
@@ -129,6 +154,18 @@ async function runVerification() {
   }
 
   // --------------------------------------------------------------------------
+  // TEST 2B: New Budget Options Accepted
+  // --------------------------------------------------------------------------
+  console.log("\nTEST 2B: Verify new budget options are accepted...");
+  for (const newBudget of ["Below ₹2,000", "₹2,000 – ₹5,000"]) {
+    const res = customRequestSchema.safeParse({ ...validPayload, budget_inr: newBudget });
+    if (!res.success) {
+      throw new Error(`Test failed: New budget '${newBudget}' was rejected: ${JSON.stringify(res.error.flatten().fieldErrors)}`);
+    }
+    console.log(`  [PASS] New budget option accepted: "${newBudget}"`);
+  }
+
+  // --------------------------------------------------------------------------
   // TEST 3: Forced insert failure never returns fake success
   // --------------------------------------------------------------------------
   console.log("\nTEST 3: Forced insert failure simulation...");
@@ -138,7 +175,7 @@ async function runVerification() {
     .insert({
       name: "Fail Test",
       email: "fail@test.com",
-      phone: "9876543210",
+      phone: "9000000000",
       concept_description: "This should fail because of invalid status enum",
       status: "non_existent_status_enum",
     })
@@ -160,7 +197,7 @@ async function runVerification() {
     .insert({
       name: "Anon Attacker",
       email: "attacker@test.com",
-      phone: "9876543210",
+      phone: "9000000000",
       concept_description: "Direct anon client attack bypass test description",
     })
     .select("id");

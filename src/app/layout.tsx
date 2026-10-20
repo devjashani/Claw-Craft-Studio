@@ -15,6 +15,7 @@ import { CartDrawer } from "@/components/layout/cart-drawer";
 import { CustomCursor } from "@/components/layout/custom-cursor";
 import { SlashFlashOverlay } from "@/components/ui/slash-flash";
 import { siteContent } from "@/content/site";
+import { getBusinessContact } from "@/lib/contact";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -78,6 +79,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in";
+  const contact = getBusinessContact();
   const orgSchema = {
     "@context": "https://schema.org",
     "@graph": [
@@ -94,6 +96,16 @@ export default function RootLayout({
           "@type": "PostalAddress",
           addressCountry: "IN",
         },
+        ...(contact.isConfigured
+          ? {
+              contactPoint: {
+                "@type": "ContactPoint",
+                telephone: `+${contact.digits}`,
+                contactType: "customer service",
+                areaServed: "IN",
+              },
+            }
+          : {}),
         sameAs: [
           process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/clawcraft.art",
         ],

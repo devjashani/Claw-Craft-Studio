@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ClawButton } from "@/components/ui/claw-button";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { useToast } from "@/components/ui/toast";
+import { getBusinessContact } from "@/lib/contact";
+import { createClient } from "@/lib/supabase/client";
 import {
   Mail,
   Phone,
@@ -14,12 +16,16 @@ import {
   Clock,
   Send,
   CheckCircle2,
-  Instagram,
   ArrowRight,
 } from "lucide-react";
 
 export default function ContactPage() {
   const { showToast } = useToast();
+
+  const [dbWhatsapp, setDbWhatsapp] = useState<string | null>(null);
+  const [supportEmail, setSupportEmail] = useState("studio@clawcraft.in");
+  const [supportHours, setSupportHours] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,23 +36,59 @@ export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("site_settings")
+          .select("key, value")
+          .in("key", ["whatsapp_number", "admin_notification_email", "support_hours", "business_address"]);
+
+        if (data) {
+          const items = data as Array<{ key: string; value: unknown }>;
+          for (const item of items) {
+            if (item.key === "whatsapp_number" && typeof item.value === "string") {
+              setDbWhatsapp(item.value);
+            }
+            if (item.key === "admin_notification_email" && typeof item.value === "string") {
+              setSupportEmail(item.value);
+            }
+            if (item.key === "support_hours" && typeof item.value === "string") {
+              setSupportHours(item.value);
+            }
+            if (item.key === "business_address" && typeof item.value === "string") {
+              setBusinessAddress(item.value);
+            }
+          }
+        }
+      } catch {
+        // Fallback gracefully to env vars
+      }
+    }
+    loadSettings();
+  }, []);
+
+  const contact = getBusinessContact(dbWhatsapp);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
-    // Provide immediate client-side handling and WhatsApp bridge
     setTimeout(() => {
       setSubmitting(false);
       setSubmitted(true);
-      showToast("Message recorded! Opening direct studio connection...", "success");
+      showToast("Message recorded! Thank you for reaching out.", "success");
     }, 600);
   };
 
-  const whatsappDirectUrl = `https://wa.me/919876543210?text=${encodeURIComponent(
-    `Hello CLAWCRAFT Studio! My name is ${name || "a collector"}. I have a query regarding: ${subject}${
-      orderNumber ? ` (Order #${orderNumber})` : ""
-    }.\n\nMessage: ${message}`
-  )}`;
+  const formFollowUpWaUrl = contact.isConfigured
+    ? contact.waLink(
+        `Hello CLAWCRAFT Studio! My name is ${name || "a collector"}. Regarding: ${subject}${
+          orderNumber ? ` (Order #${orderNumber})` : ""
+        }.\n\nMessage: ${message}`
+      )
+    : "";
 
   return (
     <div className="min-h-screen bg-void text-bone py-12 px-4 sm:px-6 lg:px-8">
@@ -60,33 +102,48 @@ export default function ContactPage() {
             TALK TO THE STUDIO
           </h1>
           <p className="text-sm sm:text-base text-muted leading-relaxed font-body">
-            Need order assistance, custom commission guidance, or studio details? Connect directly with our Indian workshop artisan.
+            Questions about orders, custom builds and delivery. Connect directly with our Indian workshop artisan.
           </p>
           <ClawDivider variant="acid" className="my-6 max-w-xs mx-auto" />
         </div>
 
         {/* Contact Methods Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* WhatsApp Direct */}
-          <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
-            <FiligreeCorner position="top-right" size={12} />
-            <div className="w-10 h-10 rounded bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5" />
+          {/* WhatsApp & Call Direct (Rendered only when business number is configured) */}
+          {contact.isConfigured && (
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
+              <FiligreeCorner position="top-right" size={12} />
+              <div className="w-10 h-10 rounded bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <h3 className="font-heading text-lg uppercase text-bone">WhatsApp & Phone</h3>
+              <p className="text-xs text-muted font-body leading-relaxed">
+                Questions about orders, custom builds and delivery.
+              </p>
+              <div className="space-y-2 pt-1 font-mono text-xs">
+                <div>
+                  <a
+                    href={contact.waLink("Hello Clawcraft Studio! I have an inquiry.")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-emerald-400 hover:underline"
+                  >
+                    <span>Chat on WhatsApp: {contact.display}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+                <div>
+                  <a
+                    href={contact.telLink}
+                    className="inline-flex items-center gap-1.5 text-bone hover:text-acid hover:underline"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-steel" />
+                    <span>Call: {contact.display}</span>
+                  </a>
+                </div>
+              </div>
             </div>
-            <h3 className="font-heading text-lg uppercase text-bone">WhatsApp Support</h3>
-            <p className="text-xs text-muted font-body leading-relaxed">
-              Fastest response time for commission sketches, delivery inquiries, and order help.
-            </p>
-            <a
-              href="https://wa.me/919876543210"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-mono text-emerald-400 hover:underline pt-1"
-            >
-              <span>+91 98765 43210</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </a>
-          </div>
+          )}
 
           {/* Email Support */}
           <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
@@ -96,14 +153,14 @@ export default function ContactPage() {
             </div>
             <h3 className="font-heading text-lg uppercase text-bone">Email Desk</h3>
             <p className="text-xs text-muted font-body leading-relaxed">
-              Send detailed blueprints, bulk gallery requests, or corporate gifting proposals.
+              Send detailed blueprints, bulk gallery requests, or order inquiries.
             </p>
             <div className="space-y-1 text-xs font-mono">
               <a
-                href="mailto:studio@clawcraft.in"
+                href={`mailto:${supportEmail}`}
                 className="block text-bone hover:text-acid transition-colors"
               >
-                studio@clawcraft.in
+                {supportEmail}
               </a>
               <a
                 href="mailto:orders@clawcraft.in"
@@ -114,21 +171,49 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Studio Workshop Hours */}
-          <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
-            <FiligreeCorner position="top-right" size={12} />
-            <div className="w-10 h-10 rounded bg-void border border-steel/40 text-steel flex items-center justify-center">
-              <Clock className="w-5 h-5" />
+          {/* Studio Workshop Hours (Hidden when empty - do not invent hours) */}
+          {supportHours ? (
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
+              <FiligreeCorner position="top-right" size={12} />
+              <div className="w-10 h-10 rounded bg-void border border-steel/40 text-steel flex items-center justify-center">
+                <Clock className="w-5 h-5" />
+              </div>
+              <h3 className="font-heading text-lg uppercase text-bone">Artisan Hours</h3>
+              <p className="text-xs text-muted font-body leading-relaxed">
+                Active workshop fabrication and support hours:
+              </p>
+              <div className="text-xs font-mono text-bone">
+                <p>{supportHours}</p>
+              </div>
             </div>
-            <h3 className="font-heading text-lg uppercase text-bone">Artisan Hours</h3>
-            <p className="text-xs text-muted font-body leading-relaxed">
-              Active workshop fabrication and fulfillment hours:
-            </p>
-            <div className="text-xs font-mono space-y-1 text-muted">
-              <p className="text-bone">Monday – Saturday: 10 AM – 8 PM IST</p>
-              <p>Sunday: Workshop Prep & Sketch Review</p>
+          ) : businessAddress ? (
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-3">
+              <FiligreeCorner position="top-right" size={12} />
+              <div className="w-10 h-10 rounded bg-void border border-steel/40 text-steel flex items-center justify-center">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <h3 className="font-heading text-lg uppercase text-bone">Workshop Location</h3>
+              <p className="text-xs text-muted font-body leading-relaxed">
+                Registered studio and fabrication bench:
+              </p>
+              <div className="text-xs font-mono text-bone leading-relaxed">
+                <p>{businessAddress}</p>
+              </div>
             </div>
-          </div>
+          ) : null}
+
+          {/* Business Address Card (if hours was also present) */}
+          {supportHours && businessAddress && (
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-3 md:col-span-3">
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-steel shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-heading text-sm uppercase text-bone">Workshop Address</h4>
+                  <p className="text-xs font-mono text-muted mt-0.5">{businessAddress}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact Form Section */}
@@ -145,19 +230,21 @@ export default function ContactPage() {
                 Message Received by Artisan
               </h2>
               <p className="text-xs text-muted font-body max-w-md mx-auto leading-relaxed">
-                Thank you, {name}. We will review your inquiry and reply via email or WhatsApp within a few hours.
+                Thank you, {name}. We will review your inquiry regarding orders, custom builds, or delivery.
               </p>
-              <div className="pt-2">
-                <a
-                  href={whatsappDirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Instant Follow-Up on WhatsApp</span>
-                </a>
-              </div>
+              {contact.isConfigured && (
+                <div className="pt-2">
+                  <a
+                    href={formFollowUpWaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-void font-bold text-xs font-mono uppercase tracking-wider rounded transition-colors"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Chat on WhatsApp</span>
+                  </a>
+                </div>
+              )}
             </div>
           ) : (
             <div>
@@ -166,7 +253,7 @@ export default function ContactPage() {
                   Send a Direct Message
                 </h2>
                 <p className="text-xs text-muted font-mono mt-1">
-                  We reply to every collector and inquiry personally.
+                  Questions about orders, custom builds and delivery.
                 </p>
               </div>
 
@@ -210,7 +297,7 @@ export default function ContactPage() {
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="9811223344"
+                      placeholder="10-digit mobile number"
                       className="w-full bg-void border border-subtle px-3.5 py-2 text-xs text-bone focus:border-acid focus:outline-none rounded font-mono"
                     />
                   </div>

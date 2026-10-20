@@ -42,6 +42,7 @@ export const siteContent: SiteContent = {
     { label: "About Studio", href: "/about" },
     { label: "Track Order", href: "/track" },
     { label: "FAQ", href: "/faq" },
+    { label: "Contact", href: "/contact" },
   ],
   policies: [
     { label: "Privacy Policy", href: "/policies/privacy" },
@@ -51,7 +52,7 @@ export const siteContent: SiteContent = {
   ],
   socials: {
     instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/clawcraft.art",
-    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919876543210",
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "",
   },
   craftSteps: [
     {
