@@ -10,6 +10,7 @@ import {
   getCustomRequestStatusMeta,
   formatIST,
 } from "@/lib/custom-requests/constants";
+import { refreshAdminCounts } from "@/lib/admin/attention";
 import {
   Mail,
   Phone,
@@ -122,6 +123,7 @@ export default function AdminCustomRequestsPage() {
 
       // Refresh list to fetch updated events and timestamps
       await fetchRequests();
+      refreshAdminCounts();
     } catch (err: any) {
       showToast(err.message || "Failed to save update", "error");
     } finally {

@@ -1,24 +1,31 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ToastType = "success" | "error" | "info";
 
+export interface ToastAction {
+  url: string;
+  label?: string;
+}
+
 interface ToastMessage {
   id: string;
   type: ToastType;
   title: string;
   description?: string;
+  action?: ToastAction;
 }
 
 interface ToastContextType {
   toast: {
-    success: (title: string, description?: string) => void;
-    error: (title: string, description?: string) => void;
-    info: (title: string, description?: string) => void;
+    success: (title: string, description?: string, action?: ToastAction) => void;
+    error: (title: string, description?: string, action?: ToastAction) => void;
+    info: (title: string, description?: string, action?: ToastAction) => void;
   };
 }
 
@@ -28,13 +35,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = useCallback(
-    (type: ToastType, title: string, description?: string) => {
+    (type: ToastType, title: string, description?: string, action?: ToastAction) => {
       const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => [...prev, { id, type, title, description }]);
+      setToasts((prev) => [...prev, { id, type, title, description, action }]);
 
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4000);
+      }, 5000);
     },
     []
   );
@@ -45,12 +52,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const toastHelpers = useMemo(
     () => ({
-      success: (title: string, description?: string) =>
-        addToast("success", title, description),
-      error: (title: string, description?: string) =>
-        addToast("error", title, description),
-      info: (title: string, description?: string) =>
-        addToast("info", title, description),
+      success: (title: string, description?: string, action?: ToastAction) =>
+        addToast("success", title, description, action),
+      error: (title: string, description?: string, action?: ToastAction) =>
+        addToast("error", title, description, action),
+      info: (title: string, description?: string, action?: ToastAction) =>
+        addToast("info", title, description, action),
     }),
     [addToast]
   );
@@ -109,6 +116,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <p className="font-sans text-xs text-steel mt-0.5 leading-snug">
                     {item.description}
                   </p>
+                )}
+                {item.action && (
+                  <div className="mt-2">
+                    <Link
+                      href={item.action.url}
+                      onClick={() => removeToast(item.id)}
+                      className="inline-flex items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-wider text-acid hover:text-white underline underline-offset-4 transition-colors"
+                    >
+                      <span>{item.action.label || "View Details →"}</span>
+                    </Link>
+                  </div>
                 )}
               </div>
 

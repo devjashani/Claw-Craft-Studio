@@ -16,9 +16,18 @@ import {
   Mail,
   ShieldCheck,
   Save,
-  CheckCircle2,
   FileText,
+  Volume2,
+  VolumeX,
+  Bell,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  getAdminSoundEnabled,
+  setAdminSoundEnabled,
+  playNotificationChime,
+  ADMIN_SOUND_CHANGE_EVENT,
+} from "@/lib/admin/attention";
 
 export default function AdminSettingsPage() {
   const { showToast } = useToast();
@@ -39,6 +48,51 @@ export default function AdminSettingsPage() {
   const [businessAddress, setBusinessAddress] = useState("");
   const [gstin, setGstin] = useState("");
   const [watermarkText, setWatermarkText] = useState("CLAWCRAFT STUDIO");
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false);
+  const [audioBlockedHint, setAudioBlockedHint] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setSoundAlertsEnabled(getAdminSoundEnabled());
+    sync();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(ADMIN_SOUND_CHANGE_EVENT, sync);
+      window.addEventListener("storage", sync);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener(ADMIN_SOUND_CHANGE_EVENT, sync);
+        window.removeEventListener("storage", sync);
+      }
+    };
+  }, []);
+
+  const handlePlayTestSound = async () => {
+    try {
+      const result = await playNotificationChime({ force: true });
+      if (result.blocked) {
+        setAudioBlockedHint(true);
+      } else {
+        setAudioBlockedHint(false);
+        showToast("Test notification chime played", "info");
+      }
+    } catch {
+      setAudioBlockedHint(true);
+    }
+  };
+
+  const handleToggleSound = () => {
+    const next = !soundAlertsEnabled;
+    setSoundAlertsEnabled(next);
+    setAdminSoundEnabled(next);
+    if (next) {
+      showToast("Notification sound enabled", "success");
+      handlePlayTestSound();
+    } else {
+      showToast("Notification sound muted", "info");
+    }
+  };
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -290,6 +344,67 @@ export default function AdminSettingsPage() {
             <span className="text-[10px] text-muted font-mono mt-1 block">
               Displayed on public Contact page if configured. Hidden when empty (no hours are invented).
             </span>
+          </div>
+
+          {/* Audio Chime Notification Toggle & Test Sound */}
+          <div className="pt-4 border-t border-subtle space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-3.5 h-3.5 text-acid" />
+                  <span className="text-xs font-mono text-bone uppercase tracking-wider font-semibold">
+                    Live Audio Notifications
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted font-mono">
+                  Play a sound when a new order or inquiry arrives
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePlayTestSound}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider rounded border border-subtle bg-void text-muted hover:text-bone hover:border-steel transition-colors"
+                  title="Test notification chime"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-acid" />
+                  <span>Play test sound</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleSound}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded border transition-all ${
+                    soundAlertsEnabled
+                      ? "bg-acid text-void border-acid font-bold shadow-[0_0_10px_rgba(184,255,31,0.3)]"
+                      : "bg-void text-muted border-subtle hover:text-bone"
+                  }`}
+                  aria-label={`Notification sound: ${soundAlertsEnabled ? "ON" : "OFF"}`}
+                >
+                  {soundAlertsEnabled ? (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5 text-void" />
+                      <span>ON</span>
+                    </>
+                  ) : (
+                    <>
+                      <VolumeX className="w-3.5 h-3.5 text-muted" />
+                      <span>OFF</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {audioBlockedHint && (
+              <div className="p-2.5 bg-blood/10 border border-blood/30 rounded flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-blood shrink-0 mt-0.5" />
+                <p className="text-[11px] text-bone font-mono">
+                  Your browser blocks sounds until you click anywhere on the page once.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { getAdminSession } from "@/lib/auth/admin-auth";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminCountsProvider } from "@/components/admin/admin-counts-context";
 
 export const metadata: Metadata = {
   title: "Studio Admin | CLAWCRAFT",
@@ -22,9 +23,11 @@ export default async function AdminLayout({
   const session = await getAdminSession();
 
   return (
-    <div className="min-h-screen bg-void text-bone selection:bg-acid selection:text-void flex flex-col font-body">
-      {session && <AdminNav userEmail={session.email} />}
-      <main className="flex-1 w-full">{children}</main>
-    </div>
+    <AdminCountsProvider>
+      <div className="min-h-screen bg-void text-bone selection:bg-acid selection:text-void flex flex-col font-body">
+        {session && <AdminNav userEmail={session.email} />}
+        <main className="flex-1 w-full">{children}</main>
+      </div>
+    </AdminCountsProvider>
   );
 }

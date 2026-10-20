@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { ClawButton } from "@/components/ui/claw-button";
 import { PRODUCT_IMAGE_MAP } from "@/lib/product-media";
+import { refreshAdminCounts } from "@/lib/admin/attention";
 import {
   ArrowLeft,
   Printer,
@@ -89,6 +90,7 @@ export default function AdminOrderDetailPage() {
       if (res.ok) {
         showToast(`Order status updated to ${newStatus}`, "success");
         if (order) setOrder({ ...order, status: newStatus });
+        refreshAdminCounts();
       }
     } catch {
       showToast("Failed to update status", "error");
@@ -127,6 +129,7 @@ export default function AdminOrderDetailPage() {
         setOrder(data.order);
         setStatus(data.order.status);
       }
+      refreshAdminCounts();
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Error saving", "error");
     } finally {
