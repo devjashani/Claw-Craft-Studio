@@ -23,7 +23,7 @@ export default function ContactPage() {
   const { showToast } = useToast();
 
   const [dbWhatsapp, setDbWhatsapp] = useState<string | null>(null);
-  const [supportEmail, setSupportEmail] = useState("studio@clawcraft.in");
+  const [supportEmail, setSupportEmail] = useState("");
   const [supportHours, setSupportHours] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
 
@@ -156,18 +156,16 @@ export default function ContactPage() {
               Send detailed blueprints, bulk gallery requests, or order inquiries.
             </p>
             <div className="space-y-1 text-xs font-mono">
-              <a
-                href={`mailto:${supportEmail}`}
-                className="block text-bone hover:text-acid transition-colors"
-              >
-                {supportEmail}
-              </a>
-              <a
-                href="mailto:orders@clawcraft.in"
-                className="block text-muted hover:text-bone transition-colors"
-              >
-                orders@clawcraft.in
-              </a>
+              {supportEmail ? (
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="block text-bone hover:text-acid transition-colors"
+                >
+                  {supportEmail}
+                </a>
+              ) : (
+                <span className="text-muted block">Direct message via desk form below</span>
+              )}
             </div>
           </div>
 
@@ -282,7 +280,7 @@ export default function ContactPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="rohan@example.com"
+                      placeholder="name@domain.com"
                       className="w-full bg-void border border-subtle px-3.5 py-2 text-xs text-bone focus:border-acid focus:outline-none rounded font-mono"
                     />
                   </div>

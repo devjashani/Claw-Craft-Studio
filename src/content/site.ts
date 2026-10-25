@@ -1,3 +1,5 @@
+import { siteConfig } from "@/lib/site";
+
 export interface SiteContent {
   brand: {
     name: string;
@@ -29,12 +31,10 @@ export interface SiteContent {
 
 export const siteContent: SiteContent = {
   brand: {
-    name: "CLAWCRAFT",
-    tagline: "Empty cans. Full attitude.",
-    disclaimer:
-      "CLAWCRAFT is an independent art studio. Not affiliated with, sponsored by or endorsed by any beverage brand. Products are handcrafted art made from empty, recycled cans.",
-    productSafetyNotice:
-      "Handcrafted decorative display piece made from cleaned, empty cans. Not a toy. Not a weapon. Not for children.",
+    name: siteConfig.name,
+    tagline: siteConfig.tagline,
+    disclaimer: siteConfig.disclaimer,
+    productSafetyNotice: siteConfig.productSafetyNotice,
   },
   navigation: [
     { label: "Shop", href: "/shop" },

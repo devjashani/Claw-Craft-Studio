@@ -1,87 +1,82 @@
 import { MetadataRoute } from "next";
 import { getProducts } from "@/lib/products";
+import { absoluteUrl } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in";
+  const now = new Date();
 
-  // Static routes with strategic indexing priority
+  // Static public routes (strictly excluding /admin, /account, /login, /signup, /auth, /api, /order, /track, /checkout, /cart)
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${baseUrl}`,
-      lastModified: new Date(),
+      url: absoluteUrl("/"),
+      lastModified: now,
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/shop`,
-      lastModified: new Date(),
+      url: absoluteUrl("/shop"),
+      lastModified: now,
       changeFrequency: "daily",
-      priority: 0.9,
+      priority: 0.95,
     },
     {
-      url: `${baseUrl}/custom`,
-      lastModified: new Date(),
+      url: absoluteUrl("/custom"),
+      lastModified: now,
       changeFrequency: "weekly",
       priority: 0.85,
     },
     {
-      url: `${baseUrl}/about`,
-      lastModified: new Date(),
+      url: absoluteUrl("/about"),
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/faq`,
-      lastModified: new Date(),
+      url: absoluteUrl("/faq"),
+      lastModified: now,
       changeFrequency: "weekly",
       priority: 0.75,
     },
     {
-      url: `${baseUrl}/contact`,
-      lastModified: new Date(),
+      url: absoluteUrl("/contact"),
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/track`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/policies/privacy`,
-      lastModified: new Date(),
+      url: absoluteUrl("/policies/privacy"),
+      lastModified: now,
       changeFrequency: "yearly",
       priority: 0.4,
     },
     {
-      url: `${baseUrl}/policies/terms`,
-      lastModified: new Date(),
+      url: absoluteUrl("/policies/terms"),
+      lastModified: now,
       changeFrequency: "yearly",
       priority: 0.4,
     },
     {
-      url: `${baseUrl}/policies/shipping`,
-      lastModified: new Date(),
+      url: absoluteUrl("/policies/shipping"),
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/policies/refund-cancellation`,
-      lastModified: new Date(),
+      url: absoluteUrl("/policies/refund-cancellation"),
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
     },
   ];
 
-  // Dynamic Product routes
+  // Dynamic published product routes
   try {
     const products = await getProducts();
     const productRoutes: MetadataRoute.Sitemap = products.map((p) => ({
-      url: `${baseUrl}/shop/${p.slug}`,
-      lastModified: new Date(p.updated_at || p.created_at),
+      url: absoluteUrl(`/shop/${p.slug}`),
+      lastModified: new Date(p.updated_at || p.created_at || now),
       changeFrequency: "weekly",
-      priority: 0.95,
+      priority: 0.9,
     }));
 
     return [...staticRoutes, ...productRoutes];

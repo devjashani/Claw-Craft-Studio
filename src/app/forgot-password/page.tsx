@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { Mail, AlertCircle, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { absoluteUrl } from "@/lib/site";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -26,9 +27,8 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const siteUrl = window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+        redirectTo: absoluteUrl("/auth/callback", { next: "/reset-password" }),
       });
 
       if (error) {
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="collector@example.com"
+                    placeholder="your.email@domain.com"
                     className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9"
                   />
                   <Mail className="w-4 h-4 text-steel/60 absolute left-3 top-3 pointer-events-none" />

@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Invalid credentials. Use studio@clawcraft.in or standard admin credentials." },
+      { error: "Invalid credentials. Please provide valid studio administrator credentials." },
       { status: 401 }
     );
   } catch (error) {

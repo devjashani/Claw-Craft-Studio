@@ -10,6 +10,31 @@ import { InstagramStrip } from "@/components/home/instagram-strip";
 import { FaqAndTrust } from "@/components/home/faq-and-trust";
 import { getProducts } from "@/lib/products";
 
+import type { Metadata } from "next";
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: siteConfig.defaultTitle,
+  description: siteConfig.defaultDescription,
+  alternates: {
+    canonical: absoluteUrl("/"),
+  },
+  openGraph: {
+    title: siteConfig.defaultTitle,
+    description: siteConfig.defaultDescription,
+    url: absoluteUrl("/"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Handcrafted Can Art`,
+      },
+    ],
+  },
+};
+
 export const revalidate = 60; // ISR cache revalidation
 
 export default async function HomePage() {

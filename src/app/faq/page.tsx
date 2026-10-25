@@ -82,7 +82,7 @@ const faqsData: FaqItem[] = [
   {
     category: "care",
     q: "What happens if a piece arrives damaged in transit?",
-    a: "We take extreme care in packaging, but in the rare event of transit damage, notify us within 48 hours of delivery at studio@clawcraft.in or on WhatsApp with unboxing photos/video. We will immediately arrange a courier return pickup and fabricate a free replacement or issue a full refund.",
+    a: "We take extreme care in packaging, but in the rare event of transit damage, notify us within 48 hours of delivery via our Contact desk (/contact) or on WhatsApp with unboxing photos/video. We will immediately arrange a courier return pickup and fabricate a free replacement or issue a full refund.",
   },
   {
     category: "care",

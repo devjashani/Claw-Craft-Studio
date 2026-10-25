@@ -4,10 +4,30 @@ import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { getBusinessContact } from "@/lib/contact";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Terms of Service | CLAWCRAFT Studio",
   description:
     "Terms of Service governing the purchase and display of handcrafted can sculptures from CLAWCRAFT Studio.",
+  alternates: {
+    canonical: absoluteUrl("/policies/terms"),
+  },
+  openGraph: {
+    title: `Terms of Service | ${siteConfig.name}`,
+    description:
+      "Terms of Service governing the purchase and display of handcrafted can sculptures from CLAWCRAFT Studio.",
+    url: absoluteUrl("/policies/terms"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Terms of Service`,
+      },
+    ],
+  },
 };
 
 export default function TermsOfServicePage() {
@@ -63,7 +83,7 @@ export default function TermsOfServicePage() {
               3. Pricing & Currency
             </h2>
             <p>
-              All prices displayed on clawcraft.in are in Indian Rupees (INR) and are inclusive of all applicable statutory taxes. Final checkout amounts including delivery fees are verified on our secure servers before order creation. We reserve the right to revise pricing for future pieces without prior notice.
+              All prices displayed on {siteConfig.domain} are in Indian Rupees (INR) and are inclusive of all applicable statutory taxes. Final checkout amounts including delivery fees are verified on our secure servers before order creation. We reserve the right to revise pricing for future pieces without prior notice.
             </p>
           </section>
 
@@ -103,10 +123,13 @@ export default function TermsOfServicePage() {
               7. Contact Us
             </h2>
             <p>
-              For legal inquiries or terms clarification, please email <strong>legal@clawcraft.in</strong>
+              For legal inquiries or terms clarification, please contact our studio via our{" "}
+              <Link href="/contact" className="text-acid hover:underline">
+                Contact Desk
+              </Link>
               {contact.isConfigured ? (
                 <>
-                  , chat via WhatsApp on{" "}
+                  , or chat via WhatsApp on{" "}
                   <a
                     href={contact.waLink("Hi Clawcraft Studio! I have a question regarding terms of service.")}
                     target="_blank"
@@ -117,10 +140,6 @@ export default function TermsOfServicePage() {
                   </a>
                 </>
               ) : null}
-              , or reach us via our{" "}
-              <Link href="/contact" className="text-acid hover:underline">
-                Contact Desk
-              </Link>
               .
             </p>
           </section>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { AdminNavBadge } from "./admin-nav-badge";
 import { useAdminCountsContext } from "./admin-counts-context";
+import { absoluteUrl } from "@/lib/site";
 
 interface AdminNavProps {
   userEmail?: string;
@@ -32,7 +33,7 @@ const navLinks = [
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-export function AdminNav({ userEmail = "studio@clawcraft.in" }: AdminNavProps) {
+export function AdminNav({ userEmail = "" }: AdminNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -84,7 +85,7 @@ export function AdminNav({ userEmail = "studio@clawcraft.in" }: AdminNavProps) {
             {/* Right Action Block for 2-Row View (lg to 2xl): Store + Account + Logout */}
             <div className="hidden lg:flex 2xl:hidden items-center gap-3 shrink-0">
               <Link
-                href="/"
+                href={absoluteUrl("/")}
                 target="_blank"
                 className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-bone transition-colors py-1.5 px-2.5 rounded bg-void border border-subtle shrink-0"
                 title="Open Public Storefront"
@@ -174,7 +175,7 @@ export function AdminNav({ userEmail = "studio@clawcraft.in" }: AdminNavProps) {
           {/* Wide Screens Single-Row Right Zone (2xl+: 1536px+) */}
           <div className="hidden 2xl:flex items-center gap-3 shrink-0 justify-end overflow-visible">
             <Link
-              href="/"
+              href={absoluteUrl("/")}
               target="_blank"
               className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-bone transition-colors py-1.5 px-2.5 rounded bg-void border border-subtle shrink-0"
               title="Open Public Storefront"
@@ -266,7 +267,7 @@ export function AdminNav({ userEmail = "studio@clawcraft.in" }: AdminNavProps) {
 
           <div className="pt-4 border-t border-subtle flex items-center justify-between">
             <Link
-              href="/"
+              href={absoluteUrl("/")}
               target="_blank"
               className="text-xs font-mono text-muted hover:text-bone flex items-center gap-1.5"
             >

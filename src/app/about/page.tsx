@@ -17,10 +17,30 @@ import {
   Truck,
 } from "lucide-react";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "About Studio | CLAWCRAFT Handcrafted Can Art",
   description:
     "Learn about CLAWCRAFT — an independent Indian art studio transforming cleaned, empty energy-drink cans into handcrafted geometric wall art and display sculptures.",
+  alternates: {
+    canonical: absoluteUrl("/about"),
+  },
+  openGraph: {
+    title: `About Studio | ${siteConfig.name}`,
+    description:
+      "Learn about CLAWCRAFT — an independent Indian art studio transforming cleaned, empty energy-drink cans into handcrafted geometric wall art and display sculptures.",
+    url: absoluteUrl("/about"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Studio`,
+      },
+    ],
+  },
 };
 
 export default function AboutPage() {

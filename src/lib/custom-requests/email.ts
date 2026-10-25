@@ -2,17 +2,14 @@ import { resend } from "@/lib/resend";
 import { getCustomRequestStatusMeta } from "./constants";
 import { getBusinessContact } from "@/lib/contact";
 
-const SENDER_EMAIL = process.env.EMAIL_FROM || "orders@clawcraft.in";
-const STUDIO_EMAIL = process.env.NEXT_PUBLIC_STUDIO_EMAIL || "studio@clawcraft.in";
+import { siteConfig, getSiteHost, absoluteUrl } from "@/lib/site";
 
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "https://claw-craft-studio.vercel.app";
+function getSenderEmail(): string {
+  return process.env.EMAIL_FROM || `orders@${getSiteHost()}`;
+}
+
+function getStudioEmail(): string {
+  return process.env.NEXT_PUBLIC_STUDIO_EMAIL || "";
 }
 
 export interface SendSubmissionEmailParams {
@@ -73,10 +70,12 @@ async function sendWithRetry(payload: Parameters<typeof resend.emails.send>[0]):
  * 1. Initial Request Confirmation Email
  */
 export async function sendCustomRequestReceivedEmail(params: SendSubmissionEmailParams): Promise<EmailResult> {
-  const baseUrl = getBaseUrl();
-  const trackUrl = `${baseUrl}/track/custom?ref=${encodeURIComponent(params.refCode)}&t=${encodeURIComponent(params.publicToken)}`;
+  const trackUrl = absoluteUrl("/track/custom", { ref: params.refCode, t: params.publicToken });
+  const siteHost = getSiteHost();
+  const senderEmail = getSenderEmail();
+  const studioEmail = getStudioEmail();
 
-  const subject = `We received your custom build request ${params.refCode} | CLAWCRAFT Studio`;
+  const subject = `We received your custom build request ${params.refCode} | ${siteConfig.longName}`;
 
   const html = `
 <!DOCTYPE html>
@@ -90,7 +89,7 @@ export async function sendCustomRequestReceivedEmail(params: SendSubmissionEmail
       
       <!-- Studio Header -->
       <div style="border-bottom: 2px solid #B8FF1F; padding-bottom: 16px; margin-bottom: 24px;">
-        <h1 style="color: #F2F0EA; font-size: 26px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">CLAWCRAFT STUDIO</h1>
+        <h1 style="color: #F2F0EA; font-size: 26px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">${siteConfig.name}</h1>
         <p style="color: #B8FF1F; font-size: 11px; margin: 6px 0 0; text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">Custom Can Sculpture Atelier</p>
       </div>
 
@@ -127,14 +126,21 @@ export async function sendCustomRequestReceivedEmail(params: SendSubmissionEmail
             getBusinessContact().isConfigured
               ? `WhatsApp: <a href="${getBusinessContact().waLink(`Hello CLAWCRAFT, inquiry about custom request ${params.refCode}`)}" style="color: #B8FF1F; text-decoration: underline;">${getBusinessContact().display}</a> &bull; `
               : ""
-          }Email: ${escapeHtml(STUDIO_EMAIL)}
+          }${
+            studioEmail
+              ? `Email: ${escapeHtml(studioEmail)}`
+              : `Web Desk: <a href="${absoluteUrl("/contact")}" style="color: #B8FF1F; text-decoration: underline;">${siteHost}/contact</a>`
+          }
         </p>
       </div>
 
       <!-- Studio Disclaimer Footer -->
       <div style="border-top: 1px solid #22262E; margin-top: 32px; padding-top: 16px; text-align: center;">
-        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0;">
-          CLAWCRAFT is an independent craft atelier creating handmade sculptures from recycled and empty metal beverage cans. Decorative art piece. Not a toy.
+        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0 0 6px;">
+          ${siteConfig.productSafetyNotice}
+        </p>
+        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0; font-family: monospace;">
+          ${siteConfig.longName} &bull; ${siteHost}
         </p>
       </div>
 
@@ -145,7 +151,7 @@ export async function sendCustomRequestReceivedEmail(params: SendSubmissionEmail
 
   const contact = getBusinessContact();
   const text = `
-CLAWCRAFT STUDIO - Custom Can Sculpture Atelier
+${siteConfig.longName} - Custom Can Sculpture Atelier
 ===============================================
 
 Hello ${params.customerName},
@@ -159,13 +165,14 @@ Track real-time progress anytime via your private link:
 ${trackUrl}
 
 Direct Studio Inquiries:
-${contact.isConfigured ? `WhatsApp: ${contact.display}\n` : ""}Email: ${STUDIO_EMAIL}
+${contact.isConfigured ? `WhatsApp: ${contact.display}\n` : ""}${studioEmail ? `Email: ${studioEmail}\n` : `Web Desk: ${siteHost}/contact\n`}
 
-CLAWCRAFT is an independent craft atelier creating handmade sculptures from recycled and empty metal beverage cans.
+${siteConfig.productSafetyNotice}
+${siteConfig.longName} • ${siteHost}
   `.trim();
 
   const res = await sendWithRetry({
-    from: SENDER_EMAIL,
+    from: senderEmail,
     to: params.customerEmail,
     subject,
     html,
@@ -184,8 +191,10 @@ CLAWCRAFT is an independent craft atelier creating handmade sculptures from recy
  */
 export async function sendCustomRequestStatusUpdateEmail(params: SendStatusUpdateEmailParams): Promise<EmailResult> {
   const meta = getCustomRequestStatusMeta(params.status);
-  const baseUrl = getBaseUrl();
-  const trackUrl = `${baseUrl}/track/custom?ref=${encodeURIComponent(params.refCode)}&t=${encodeURIComponent(params.publicToken)}`;
+  const trackUrl = absoluteUrl("/track/custom", { ref: params.refCode, t: params.publicToken });
+  const siteHost = getSiteHost();
+  const senderEmail = getSenderEmail();
+  const studioEmail = getStudioEmail();
 
   const subject = `Update on your custom build request ${params.refCode}: ${meta.label}`;
 
@@ -212,7 +221,7 @@ export async function sendCustomRequestStatusUpdateEmail(params: SendStatusUpdat
       
       <!-- Studio Header -->
       <div style="border-bottom: 2px solid #B8FF1F; padding-bottom: 16px; margin-bottom: 24px;">
-        <h1 style="color: #F2F0EA; font-size: 26px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">CLAWCRAFT STUDIO</h1>
+        <h1 style="color: #F2F0EA; font-size: 26px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">${siteConfig.name}</h1>
         <p style="color: #B8FF1F; font-size: 11px; margin: 6px 0 0; text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">Commission Progress Update</p>
       </div>
 
@@ -246,15 +255,18 @@ export async function sendCustomRequestStatusUpdateEmail(params: SendStatusUpdat
           ${
             getBusinessContact().isConfigured
               ? `Reply directly, or chat via WhatsApp: <a href="${getBusinessContact().waLink(`Question regarding custom request ${params.refCode} update`)}" style="color: #B8FF1F; text-decoration: underline;">${getBusinessContact().display}</a>`
-              : `Reply directly to this email for studio assistance.`
+              : `Reply directly to this email or visit our web contact desk.`
           }
         </p>
       </div>
 
       <!-- Studio Disclaimer Footer -->
       <div style="border-top: 1px solid #22262E; margin-top: 32px; padding-top: 16px; text-align: center;">
-        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0;">
-          CLAWCRAFT is an independent craft atelier creating handmade sculptures from recycled and empty metal beverage cans. Decorative art piece. Not a toy.
+        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0 0 6px;">
+          ${siteConfig.productSafetyNotice}
+        </p>
+        <p style="font-size: 11px; color: #555A64; line-height: 1.5; margin: 0; font-family: monospace;">
+          ${siteConfig.longName} &bull; ${siteHost}
         </p>
       </div>
 
@@ -265,7 +277,7 @@ export async function sendCustomRequestStatusUpdateEmail(params: SendStatusUpdat
 
   const statusContact = getBusinessContact();
   const text = `
-CLAWCRAFT STUDIO - Commission Update
+${siteConfig.longName} - Commission Update
 ====================================
 
 Hello ${params.customerName},
@@ -278,13 +290,14 @@ Track real-time progress:
 ${trackUrl}
 
 Direct Studio Inquiries:
-${statusContact.isConfigured ? `WhatsApp: ${statusContact.display}\n` : ""}Email: ${STUDIO_EMAIL}
+${statusContact.isConfigured ? `WhatsApp: ${statusContact.display}\n` : ""}${studioEmail ? `Email: ${studioEmail}\n` : `Web Desk: ${siteHost}/contact\n`}
 
-CLAWCRAFT is an independent craft atelier creating handmade sculptures from recycled and empty metal beverage cans.
+${siteConfig.productSafetyNotice}
+${siteConfig.longName} • ${siteHost}
   `.trim();
 
   const res = await sendWithRetry({
-    from: SENDER_EMAIL,
+    from: senderEmail,
     to: params.customerEmail,
     subject,
     html,

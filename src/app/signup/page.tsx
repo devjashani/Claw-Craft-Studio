@@ -6,6 +6,10 @@ import { Loader2 } from "lucide-react";
 export const metadata: Metadata = {
   title: "Create Account | CLAWCRAFT Studio",
   description: "Join CLAWCRAFT Studio to preserve your sculpture collection history and enjoy faster checkout.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function SignupPage() {

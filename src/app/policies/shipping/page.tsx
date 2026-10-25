@@ -5,10 +5,30 @@ import { ClawDivider } from "@/components/ui/claw-divider";
 import { Truck, ShieldCheck, Clock, MapPin, Box } from "lucide-react";
 import { getBusinessContact } from "@/lib/contact";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Shipping & Delivery Policy | CLAWCRAFT Studio",
   description:
     "Pan-India shipping rates, delivery timelines, armor packaging guarantees, and courier tracking details for CLAWCRAFT handcrafted sculptures.",
+  alternates: {
+    canonical: absoluteUrl("/policies/shipping"),
+  },
+  openGraph: {
+    title: `Shipping & Delivery Policy | ${siteConfig.name}`,
+    description:
+      "Pan-India shipping rates, delivery timelines, armor packaging guarantees, and courier tracking details for CLAWCRAFT handcrafted sculptures.",
+    url: absoluteUrl("/policies/shipping"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Shipping Policy`,
+      },
+    ],
+  },
 };
 
 export default function ShippingPolicyPage() {

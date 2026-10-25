@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { Order, OrderItem } from "@/types/shop";
 import { formatINR } from "@/lib/utils";
 import { getBusinessContact } from "@/lib/contact";
+import { siteConfig, getSiteHost, absoluteUrl } from "@/lib/site";
 
 const resendApiKey = process.env.RESEND_API_KEY || "re_placeholderKey";
 export const resend = new Resend(resendApiKey);
@@ -44,18 +45,29 @@ export async function sendCustomerOrderConfirmationEmail({
     )
     .join("");
 
+  const trackingUrl = absoluteUrl(
+    `/order/${order.id}`,
+    order.public_token ? { t: order.public_token } : undefined
+  );
+  const receiptUrl = absoluteUrl(
+    `/api/orders/${order.id}/slip`,
+    order.public_token ? { t: order.public_token } : undefined
+  );
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `orders@${siteHost}`;
+
   const emailHtml = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
-        <title>Order Confirmed | CLAWCRAFT</title>
+        <title>Order Confirmed | ${siteConfig.name}</title>
       </head>
       <body style="background-color: #050505; color: #F2F0EA; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; margin: 0;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #111214; border: 1px solid #22262E; padding: 30px; border-radius: 4px;">
           <div style="border-bottom: 2px solid #B8FF1F; padding-bottom: 16px; margin-bottom: 24px;">
-            <h1 style="color: #F2F0EA; font-size: 28px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">CLAWCRAFT</h1>
-            <p style="color: #B8FF1F; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; font-family: monospace;">Empty cans. Full attitude.</p>
+            <h1 style="color: #F2F0EA; font-size: 28px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">${siteConfig.name}</h1>
+            <p style="color: #B8FF1F; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; font-family: monospace;">${siteConfig.tagline}</p>
           </div>
 
           <h2 style="color: #F2F0EA; font-size: 20px; margin-top: 0;">ORDER CONFIRMED: ${order.order_number}</h2>
@@ -113,12 +125,12 @@ export async function sendCustomerOrderConfirmationEmail({
 
           <!-- Download Receipt Action -->
           <div style="text-align: center; margin: 28px 0; padding: 20px; background-color: #050505; border: 1px solid #22262E; border-radius: 4px;">
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in"}/api/orders/${order.id}/slip?t=${order.public_token || ""}"
+            <a href="${receiptUrl}"
                style="background-color: #B8FF1F; color: #050505; font-family: monospace; font-size: 13px; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 2px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">
               Download Official Receipt (PDF) &rarr;
             </a>
             <p style="margin: 10px 0 0; font-size: 11px; color: #8E959F; font-family: monospace;">
-              Live order tracking: <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in"}/order/${order.id}?t=${order.public_token || ""}" style="color: #B8FF1F; text-decoration: underline;">clawcraft.in/order/${order.order_number}</a>
+              Live order tracking: <a href="${trackingUrl}" style="color: #B8FF1F; text-decoration: underline;">${siteHost}/order/${order.order_number}</a>
             </p>
             ${
               getBusinessContact().isConfigured
@@ -131,10 +143,13 @@ export async function sendCustomerOrderConfirmationEmail({
 
           <div style="padding-top: 16px; border-top: 1px solid #22262E; font-size: 11px; color: #8E959F; line-height: 1.5;">
             <p style="margin: 0 0 8px;">
-              <strong>DISCLAIMER:</strong> CLAWCRAFT is an independent art studio. Not affiliated with, sponsored by or endorsed by any beverage brand. Products are handcrafted art made from empty, recycled cans.
+              <strong>DISCLAIMER:</strong> ${siteConfig.disclaimer}
             </p>
-            <p style="margin: 0;">
-              <strong>NOTICE:</strong> Handcrafted decorative display piece made from cleaned, empty cans. Not a toy. Not a weapon. Not for children.
+            <p style="margin: 0 0 8px;">
+              <strong>NOTICE:</strong> ${siteConfig.productSafetyNotice}
+            </p>
+            <p style="margin: 8px 0 0; color: #666; font-family: monospace;">
+              ${siteConfig.longName} • ${siteHost}
             </p>
           </div>
         </div>
@@ -144,9 +159,9 @@ export async function sendCustomerOrderConfirmationEmail({
 
   try {
     return await resend.emails.send({
-      from: process.env.EMAIL_FROM || "orders@clawcraft.in",
+      from: defaultFrom,
       to: order.customer_email,
-      subject: `Order Confirmed: ${order.order_number} | CLAWCRAFT Studio`,
+      subject: `Order Confirmed: ${order.order_number} | ${siteConfig.longName}`,
       html: emailHtml,
     });
   } catch (error) {
@@ -165,7 +180,14 @@ export async function sendAdminOrderAlertEmail({
   order: Order;
   items: OrderItem[];
 }) {
-  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "studio@clawcraft.in";
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminEmail) {
+    console.log(`[Email] No ADMIN_NOTIFICATION_EMAIL configured; skipping alert for order ${order.order_number}`);
+    return { success: true, skipped: true };
+  }
+
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `orders@${siteHost}`;
 
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes("placeholder")) {
     console.log(`[Email Mock] Admin alert sent to ${adminEmail} for order ${order.order_number}`);
@@ -195,7 +217,7 @@ export async function sendAdminOrderAlertEmail({
 
   try {
     return await resend.emails.send({
-      from: process.env.EMAIL_FROM || "orders@clawcraft.in",
+      from: defaultFrom,
       to: adminEmail,
       subject: `🚨 New Order ${order.order_number} (${formatINR(order.total_paise)})`,
       html: emailHtml,
@@ -220,6 +242,9 @@ export async function sendShippingUpdateEmail({
   trackingNumber: string;
   trackingUrl?: string | null;
 }) {
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `orders@${siteHost}`;
+
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes("placeholder")) {
     console.log(
       `[Email Mock] Shipping notification email dispatched for ${order.customer_email}: ${courierName} / ${trackingNumber}`
@@ -236,7 +261,7 @@ export async function sendShippingUpdateEmail({
     <html>
       <body style="background-color: #050505; color: #F2F0EA; font-family: sans-serif; padding: 30px;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #111214; border: 1px solid #22262E; padding: 30px; border-radius: 4px;">
-          <h1 style="color: #F2F0EA; font-size: 24px; letter-spacing: 2px; margin-top: 0; text-transform: uppercase;">CLAWCRAFT</h1>
+          <h1 style="color: #F2F0EA; font-size: 24px; letter-spacing: 2px; margin-top: 0; text-transform: uppercase;">${siteConfig.name}</h1>
           <p style="color: #B8FF1F; font-size: 14px; font-family: monospace;">YOUR RELIC HAS BEEN DISPATCHED</p>
           <p style="color: #C9CDD2; font-size: 15px; line-height: 1.6;">
             Hello ${order.customer_name}, your handcrafted can sculpture for order <strong>${order.order_number}</strong> has shipped in rigid protective armor packaging.
@@ -253,9 +278,14 @@ export async function sendShippingUpdateEmail({
                 </p>`
               : ""
           }
-          <p style="color: #8E959F; font-size: 12px; margin-top: 30px; border-top: 1px solid #22262E; padding-top: 16px;">
-            Handcrafted decorative display piece made from cleaned, empty cans. Not a toy. Not a weapon. Not for children.
-          </p>
+          <div style="margin-top: 30px; border-top: 1px solid #22262E; padding-top: 16px; font-size: 11px; color: #8E959F; line-height: 1.5;">
+            <p style="margin: 0 0 8px;">
+              ${siteConfig.productSafetyNotice}
+            </p>
+            <p style="margin: 8px 0 0; color: #666; font-family: monospace;">
+              ${siteConfig.longName} • ${siteHost}
+            </p>
+          </div>
         </div>
       </body>
     </html>
@@ -263,9 +293,9 @@ export async function sendShippingUpdateEmail({
 
   try {
     return await resend.emails.send({
-      from: process.env.EMAIL_FROM || "orders@clawcraft.in",
+      from: defaultFrom,
       to: order.customer_email,
-      subject: `Dispatched: Order ${order.order_number} is on the way | CLAWCRAFT`,
+      subject: `Dispatched: Order ${order.order_number} is on the way | ${siteConfig.longName}`,
       html: emailHtml,
     });
   } catch (error) {

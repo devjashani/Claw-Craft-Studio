@@ -6,6 +6,10 @@ import { Loader2 } from "lucide-react";
 export const metadata: Metadata = {
   title: "Account Login | CLAWCRAFT Studio",
   description: "Sign in to your CLAWCRAFT Studio account to view saved addresses and track orders.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function LoginPage() {

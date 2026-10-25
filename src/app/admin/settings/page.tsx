@@ -44,7 +44,7 @@ export default function AdminSettingsPage() {
   );
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [supportHours, setSupportHours] = useState("");
-  const [adminNotificationEmail, setAdminNotificationEmail] = useState("studio@clawcraft.in");
+  const [adminNotificationEmail, setAdminNotificationEmail] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [gstin, setGstin] = useState("");
   const [watermarkText, setWatermarkText] = useState("CLAWCRAFT STUDIO");
@@ -321,7 +321,7 @@ export default function AdminSettingsPage() {
                 type="email"
                 value={adminNotificationEmail}
                 onChange={(e) => setAdminNotificationEmail(e.target.value)}
-                placeholder="studio@clawcraft.in"
+                placeholder="admin@domain.com"
                 className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
               />
               <span className="text-[10px] text-muted font-mono mt-1 block">

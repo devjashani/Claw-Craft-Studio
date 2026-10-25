@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getAdminOrderById } from "@/lib/admin/admin-data";
 import { formatINR } from "@/lib/utils";
 import { Printer, ArrowLeft, ShieldAlert } from "lucide-react";
+import { siteConfig, getSiteHost } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -49,15 +50,15 @@ export default async function OrderInvoicePage({ params }: InvoicePageProps) {
         {/* Studio Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between border-b-2 border-neutral-900 pb-6 mb-8">
           <div>
-            <h1 className="text-3xl font-black tracking-wider uppercase">CLAWCRAFT</h1>
+            <h1 className="text-3xl font-black tracking-wider uppercase">{siteConfig.name}</h1>
             <p className="text-xs uppercase tracking-widest text-neutral-600 font-mono mt-0.5">
-              Empty cans. Full attitude.
+              {siteConfig.tagline}
             </p>
             <p className="text-xs text-neutral-500 mt-2">
               Independent Handmade Art Studio • India
             </p>
             <p className="text-xs text-neutral-500 font-mono">
-              Email: studio@clawcraft.in • Web: clawcraft.in
+              Web: {getSiteHost()}
             </p>
           </div>
 

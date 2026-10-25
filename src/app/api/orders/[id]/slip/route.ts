@@ -5,6 +5,7 @@ import { buildSlipPdf } from "@/lib/pdf/order-slip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       // ignore
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clawcraft.in";
+    const siteUrl = getSiteUrl();
     const pdfBytes = await buildSlipPdf(order, {
       watermarkText,
       gstin,

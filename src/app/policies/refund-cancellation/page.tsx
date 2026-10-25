@@ -5,10 +5,30 @@ import { ClawDivider } from "@/components/ui/claw-divider";
 import { ShieldAlert, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { getBusinessContact } from "@/lib/contact";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Refund & Cancellation Policy | CLAWCRAFT Studio",
   description:
     "Refund and cancellation guidelines for CLAWCRAFT handcrafted display sculptures. Transit damage protocol and return timelines.",
+  alternates: {
+    canonical: absoluteUrl("/policies/refund-cancellation"),
+  },
+  openGraph: {
+    title: `Refund & Cancellation Policy | ${siteConfig.name}`,
+    description:
+      "Refund and cancellation guidelines for CLAWCRAFT handcrafted display sculptures. Transit damage protocol and return timelines.",
+    url: absoluteUrl("/policies/refund-cancellation"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Refund Policy`,
+      },
+    ],
+  },
 };
 
 export default function RefundCancellationPage() {
@@ -42,11 +62,11 @@ export default function RefundCancellationPage() {
             <ul className="list-disc pl-5 space-y-1 text-muted">
               <li>
                 To cancel, {contact.isConfigured ? (
-                  <>message us on WhatsApp at <a href={contact.waLink("Hi Clawcraft Studio! I want to cancel my order")} target="_blank" rel="noopener noreferrer" className="text-acid hover:underline"><strong>{contact.display}</strong></a> or email </>
+                  <>message us on WhatsApp at <a href={contact.waLink("Hi Clawcraft Studio! I want to cancel my order")} target="_blank" rel="noopener noreferrer" className="text-acid hover:underline"><strong>{contact.display}</strong></a> or reach our </>
                 ) : (
-                  <>email </>
+                  <>reach our </>
                 )}
-                <strong>orders@clawcraft.in</strong> quoting your order number (e.g. <code>CC-2026-XXXX</code>).
+                <Link href="/contact" className="text-acid hover:underline"><strong>Studio Contact Desk</strong></Link> quoting your order number (e.g. <code>CC-2026-XXXX</code>).
               </li>
               <li>Upon confirmation, a 100% refund is initiated immediately to your original payment method via Razorpay.</li>
               <li>Once an order has been handed over to the courier partner and an AWB has been issued, it cannot be canceled in transit.</li>
@@ -68,7 +88,7 @@ export default function RefundCancellationPage() {
               </p>
               <ol className="list-decimal pl-5 space-y-1 text-muted">
                 <li>Notify our studio within <strong>48 hours of delivery</strong>.</li>
-                <li>Send unboxing photos or a short video showing the damaged package and sculpture to <strong>studio@clawcraft.in</strong> or via WhatsApp.</li>
+                <li>Send unboxing photos or a short video showing the damaged package and sculpture via our <Link href="/contact" className="text-acid hover:underline">Contact Desk</Link> or WhatsApp.</li>
                 <li>We will schedule a reverse-pickup from your doorstep at zero cost to you.</li>
                 <li>You can choose between a <strong>priority replacement piece fabricated for free</strong> or a <strong>100% refund</strong>.</li>
               </ol>
@@ -132,7 +152,12 @@ export default function RefundCancellationPage() {
                   </a>
                 </p>
               )}
-              <p className="text-muted">Email: orders@clawcraft.in</p>
+              <p className="text-muted">
+                Contact Desk:{" "}
+                <Link href="/contact" className="text-acid hover:underline">
+                  /contact
+                </Link>
+              </p>
             </div>
           </section>
         </div>

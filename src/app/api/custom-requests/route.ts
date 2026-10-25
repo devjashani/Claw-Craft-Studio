@@ -7,6 +7,7 @@ import { resend } from "@/lib/resend";
 import { CustomRequestStatus } from "@/types/database.types";
 import { sendCustomRequestReceivedEmail } from "@/lib/custom-requests/email";
 import { CUSTOM_REQUEST_BUDGET_OPTIONS } from "@/lib/custom-requests/constants";
+import { getSiteHost } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -300,8 +301,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 11. Admin Email Notification (non-blocking: must never fail the request if email fails)
-    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "studio@clawcraft.in";
-    if (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes("placeholder")) {
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+    if (adminEmail && process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes("placeholder")) {
       try {
         const referenceHtml =
           validated.reference_image_urls.length > 0
@@ -310,8 +311,9 @@ export async function POST(req: NextRequest) {
                 .join("")}</ul>`
             : "";
 
+        const siteHost = getSiteHost();
         await resend.emails.send({
-          from: process.env.EMAIL_FROM || "orders@clawcraft.in",
+          from: process.env.EMAIL_FROM || `orders@${siteHost}`,
           to: adminEmail,
           subject: `⚡ New Commission Proposal [${finalRefCode}]: ${validated.name}`,
           html: `

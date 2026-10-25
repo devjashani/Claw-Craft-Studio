@@ -4,10 +4,30 @@ import Link from "next/link";
 import { ClawDivider } from "@/components/ui/claw-divider";
 import { getBusinessContact } from "@/lib/contact";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Privacy Policy | CLAWCRAFT Studio",
   description:
     "Privacy Policy for CLAWCRAFT Studio. Information on how customer details, shipping addresses, and payment data are handled under Indian laws.",
+  alternates: {
+    canonical: absoluteUrl("/policies/privacy"),
+  },
+  openGraph: {
+    title: `Privacy Policy | ${siteConfig.name}`,
+    description:
+      "Privacy Policy for CLAWCRAFT Studio. Information on how customer details, shipping addresses, and payment data are handled under Indian laws.",
+    url: absoluteUrl("/policies/privacy"),
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: absoluteUrl("/assets/og-image.jpg"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} Privacy Policy`,
+      },
+    ],
+  },
 };
 
 export default function PrivacyPolicyPage() {
@@ -32,7 +52,7 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-2">
             <h2 className="font-heading text-lg uppercase text-bone">1. Overview</h2>
             <p>
-              CLAWCRAFT (&quot;Studio&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) is committed to protecting the privacy of visitors and collectors who browse and purchase handcrafted art pieces on clawcraft.in. This Privacy Policy outlines our practices regarding the collection, storage, and protection of personal data in accordance with the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011 of India.
+              CLAWCRAFT (&quot;Studio&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) is committed to protecting the privacy of visitors and collectors who browse and purchase handcrafted art pieces on {siteConfig.domain}. This Privacy Policy outlines our practices regarding the collection, storage, and protection of personal data in accordance with the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011 of India.
             </p>
           </section>
 
@@ -73,7 +93,7 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-2">
             <h2 className="font-heading text-lg uppercase text-bone">5. Data Retention & Your Rights</h2>
             <p>
-              We retain customer order records for statutory accounting and warranty fulfillment periods under Indian law. You have the right to request a summary of the personal data we hold or request deletion of non-essential records by contacting us at <strong>privacy@clawcraft.in</strong>.
+              We retain customer order records for statutory accounting and warranty fulfillment periods under Indian law. You have the right to request a summary of the personal data we hold or request deletion of non-essential records by contacting us at our Studio Privacy Desk.
             </p>
           </section>
 
@@ -84,7 +104,9 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="p-4 bg-ash border border-subtle rounded text-xs font-mono space-y-1">
               <p className="text-bone font-bold">CLAWCRAFT Studio Privacy Desk</p>
-              <p className="text-muted">Email: studio@clawcraft.in / orders@clawcraft.in</p>
+              <p className="text-muted">
+                Contact: <Link href="/contact" className="text-acid hover:underline">Studio Contact Desk</Link>
+              </p>
               {contact.isConfigured && (
                 <p className="text-muted">
                   WhatsApp:{" "}

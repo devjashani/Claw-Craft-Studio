@@ -12,6 +12,8 @@ import { ClawDivider } from "@/components/ui/claw-divider";
 import { formatINR } from "@/lib/utils";
 import { ShieldAlert, Package, Ruler, ShieldCheck, ChevronRight } from "lucide-react";
 
+import { siteConfig, absoluteUrl } from "@/lib/site";
+
 interface ProductPageProps {
   params: { slug: string };
 }
@@ -25,17 +27,26 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const product = await getProductBySlug(params.slug);
-  if (!product) return { title: "Sculpture Not Found | CLAWCRAFT" };
+  if (!product) return { title: `Sculpture Not Found | ${siteConfig.name}` };
 
-  const imageUrl = getProductImageUrl(product.slug);
+  const rawImageUrl = getProductImageUrl(product.slug);
+  const imageUrl = rawImageUrl.startsWith("http")
+    ? rawImageUrl
+    : absoluteUrl(rawImageUrl);
   const altText = getProductAltText(product.slug, product.title);
+  const productUrl = absoluteUrl(`/shop/${product.slug}`);
 
   return {
     title: `${product.title} | Handcrafted Can Art`,
     description: product.tagline || product.description,
+    alternates: {
+      canonical: productUrl,
+    },
     openGraph: {
-      title: `${product.title} | CLAWCRAFT Studio`,
+      title: `${product.title} | ${siteConfig.name} Studio`,
       description: product.description,
+      url: productUrl,
+      siteName: siteConfig.name,
       images: [
         {
           url: imageUrl,
@@ -47,7 +58,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: `${product.title} | CLAWCRAFT Studio`,
+      title: `${product.title} | ${siteConfig.name} Studio`,
       description: product.description,
       images: [imageUrl],
     },
@@ -65,8 +76,14 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     .filter((p) => p.id !== product.id)
     .slice(0, 3);
 
+  const rawImageUrl = getProductImageUrl(product.slug);
+  const imageUrl = rawImageUrl.startsWith("http")
+    ? rawImageUrl
+    : absoluteUrl(rawImageUrl);
+  const productUrl = absoluteUrl(`/shop/${product.slug}`);
+
   // Gallery images with single clean product image
-  const productImages = [getProductImageUrl(product.slug)];
+  const productImages = [imageUrl];
 
   // Schema.org JSON-LD Structured Data
   const offers =
@@ -74,7 +91,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       ? product.variants.map((v) => ({
           "@type": "Offer",
           name: `${product.title} - ${v.label}`,
-          url: `https://clawcraft.in/shop/${product.slug}`,
+          url: productUrl,
           priceCurrency: "INR",
           price: (v.price_paise / 100).toFixed(2),
           availability:
@@ -85,7 +102,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         }))
       : {
           "@type": "Offer",
-          url: `https://clawcraft.in/shop/${product.slug}`,
+          url: productUrl,
           priceCurrency: "INR",
           price: (product.price_paise / 100).toFixed(2),
           availability:
@@ -97,15 +114,45 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.title,
-    image: [getProductImageUrl(product.slug)],
-    description: product.description,
-    brand: {
-      "@type": "Brand",
-      name: "CLAWCRAFT",
-    },
-    offers,
+    "@graph": [
+      {
+        "@type": "Product",
+        "@id": `${productUrl}#product`,
+        name: product.title,
+        url: productUrl,
+        image: [imageUrl],
+        description: product.description,
+        brand: {
+          "@type": "Brand",
+          name: siteConfig.name,
+        },
+        offers,
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${productUrl}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: absoluteUrl("/"),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Shop",
+            item: absoluteUrl("/shop"),
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: product.title,
+            item: productUrl,
+          },
+        ],
+      },
+    ],
   };
 
   const hasDimensions =

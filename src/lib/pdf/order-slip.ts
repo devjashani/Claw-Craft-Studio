@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { Order, OrderItem } from "@/types/shop";
 import { generateOrderVerifySignature } from "@/lib/orders/order-crypto";
 import { getBusinessContact } from "@/lib/contact";
+import { siteConfig, getSiteUrl, getSiteHost } from "@/lib/site";
 
 export interface BuildSlipOptions {
   watermarkText?: string;
@@ -11,6 +12,7 @@ export interface BuildSlipOptions {
   gstin?: string;
   siteUrl?: string;
   whatsappNumber?: string;
+  supportEmail?: string;
   isDemo?: boolean;
 }
 
@@ -124,8 +126,9 @@ export async function buildSlipPdf(
   const margin = 40;
   const contentWidth = pageWidth - margin * 2;
 
-  const watermarkText = options?.watermarkText || "CLAWCRAFT STUDIO";
-  const siteUrl = options?.siteUrl || "https://clawcraft.in";
+  const watermarkText = options?.watermarkText || `${siteConfig.name} STUDIO`;
+  const siteUrl = options?.siteUrl || getSiteUrl();
+  const siteHost = getSiteHost();
   const isDemo = Boolean(order.isDemo || options?.isDemo || order.id?.startsWith("demo-"));
   const isPaid = (order.payment_status === "paid" || order.status === "paid") && !isDemo;
 
@@ -199,22 +202,27 @@ export async function buildSlipPdf(
 
   // Studio contacts on the right
   const contactX = pageWidth - margin - 170;
-  currentPage.drawText("Web: clawcraft.in", {
+  currentPage.drawText(`Web: ${siteHost}`, {
     x: contactX,
     y: currentY - 12,
     size: 8,
     font: fontRegular,
     color: rgb(0.3, 0.3, 0.3),
   });
-  currentPage.drawText("Email: studio@clawcraft.in", {
-    x: contactX,
-    y: currentY - 23,
-    size: 8,
-    font: fontRegular,
-    color: rgb(0.3, 0.3, 0.3),
-  });
+
+  const supportEmail = options?.supportEmail || process.env.NEXT_PUBLIC_STUDIO_EMAIL;
+  let contactOffset = 23;
+  if (supportEmail) {
+    currentPage.drawText(`Email: ${supportEmail}`, {
+      x: contactX,
+      y: currentY - contactOffset,
+      size: 8,
+      font: fontRegular,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    contactOffset += 11;
+  }
   const contact = getBusinessContact(options?.whatsappNumber);
-  let contactOffset = 34;
   if (contact.isConfigured) {
     currentPage.drawText(`WhatsApp: ${contact.display}`, {
       x: contactX,
@@ -717,7 +725,7 @@ export async function buildSlipPdf(
 
   currentY -= 11;
   currentPage.drawText(
-    "CLAWCRAFT is an independent art studio. Not affiliated with, sponsored by or endorsed by any beverage brand. Products are handcrafted art made from empty, recycled cans.",
+    siteConfig.disclaimer,
     {
       x: margin,
       y: currentY,

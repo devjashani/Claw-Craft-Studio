@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Shield,
 } from "lucide-react";
+import { absoluteUrl } from "@/lib/site";
 
 interface AuthCardProps {
   initialMode?: "login" | "signup";
@@ -131,7 +132,6 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
 
     setLoading(true);
     try {
-      const siteUrl = window.location.origin;
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -139,7 +139,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
           data: {
             full_name: name.trim() || splitEmailName(email),
           },
-          emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
+          emailRedirectTo: absoluteUrl("/auth/callback", { next: nextUrl }),
         },
       });
 
@@ -170,11 +170,10 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
     setErrorMessage(null);
     setGoogleLoading(true);
     try {
-      const siteUrl = window.location.origin;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
+          redirectTo: absoluteUrl("/auth/callback", { next: nextUrl }),
         },
       });
 
@@ -349,7 +348,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="collector@example.com"
+                    placeholder="your.email@domain.com"
                     className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9"
                   />
                   <Mail className="w-4 h-4 text-steel/60 absolute left-3 top-3 pointer-events-none" />

@@ -142,7 +142,7 @@ function getMockStore(): AdminMockStore {
         announcement_bar_text:
           "HANDCRAFTED FROM CLEANED RECYCLED CANS • FREE PAN-INDIA SHIPPING ON ORDERS ABOVE ₹2,999",
         whatsapp_number: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "",
-        admin_notification_email: "studio@clawcraft.in",
+        admin_notification_email: process.env.ADMIN_NOTIFICATION_EMAIL || "",
         business_address: "",
         gstin: "",
         watermark_text: "CLAWCRAFT STUDIO",

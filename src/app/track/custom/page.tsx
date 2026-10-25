@@ -174,7 +174,7 @@ function TrackCustomContent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
+                    placeholder="your.email@domain.com"
                     className="w-full bg-void border border-steel/30 px-3.5 py-2.5 text-xs text-bone placeholder:text-steel/50 focus:border-acid focus:outline-none rounded font-mono"
                   />
                 </div>

@@ -107,7 +107,7 @@ function AdminLoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="studio@clawcraft.in"
+              placeholder="artisan@domain.com"
               className="w-full bg-void border border-subtle px-3.5 py-2.5 text-sm text-bone placeholder:text-muted/50 focus:border-acid focus:outline-none transition-colors"
             />
           </div>
