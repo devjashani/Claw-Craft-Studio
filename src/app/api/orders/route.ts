@@ -73,13 +73,16 @@ export async function POST(req: NextRequest) {
 
     // 3. Payment Details
     const paymentId = body.payment_id || body.razorpay_payment_id || null;
-    const paymentStatus = (body.payment_status || "paid").toLowerCase();
     const razorpayOrderId = body.razorpay_order_id || null;
     const razorpaySignature = body.razorpay_signature || null;
     const paymentMethod = body.payment_method || "razorpay";
+    const isCod = paymentMethod === "cod";
 
-    const isPaid = paymentStatus === "paid";
-    const orderStatus = isPaid ? "paid" : "processing";
+    // SECURITY: An order is NEVER marked paid directly from client POST.
+    // Online orders start in pending_payment; COD orders start in processing.
+    // Paid status is ONLY achieved via server verification or verified webhook.
+    const orderStatus = isCod ? "processing" : "pending_payment";
+    const paymentStatus = isCod ? "pending_payment" : "pending_payment";
     const nowIso = new Date().toISOString();
     const publicToken = generatePublicToken();
     const fallbackOrderNumber = `CC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -110,7 +113,7 @@ export async function POST(req: NextRequest) {
         discount_applied_rupees: discountPaise / 100,
         paid_at: nowIso,
       },
-      paid_at: isPaid ? nowIso : null,
+      paid_at: null,
       user_id: authenticatedUserId,
       created_at: nowIso,
       updated_at: nowIso,

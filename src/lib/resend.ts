@@ -229,6 +229,57 @@ export async function sendAdminOrderAlertEmail({
 }
 
 /**
+ * Send Admin Payment Gateway Error / Configuration Alert Email
+ */
+export async function sendAdminPaymentAlertEmail({
+  subject,
+  message,
+}: {
+  subject: string;
+  message: string;
+}) {
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminEmail) {
+    console.error("[Payment Alert Email] ADMIN_NOTIFICATION_EMAIL is not configured.");
+    return { success: false, skipped: true };
+  }
+
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `orders@${siteHost}`;
+
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes("placeholder")) {
+    console.log(`[Email Mock] Admin Payment Alert: ${subject} -> ${message}`);
+    return { success: true, mock: true };
+  }
+
+  const emailHtml = `
+    <h2>⚠️ CLAWCRAFT STUDIO — Payment System Alert</h2>
+    <p><strong>Host:</strong> ${siteHost}</p>
+    <p><strong>Environment:</strong> ${process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown"}</p>
+    <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+    <hr style="border: 0; border-top: 1px solid #ddd; margin: 16px 0;" />
+    <p style="font-size: 14px; font-family: monospace; color: #b00020; background: #fff1f0; padding: 12px; border-radius: 4px;">
+      ${message}
+    </p>
+    <p style="font-size: 12px; color: #666;">
+      Please check your Vercel Environment Variables and Razorpay Dashboard immediately.
+    </p>
+  `;
+
+  try {
+    return await resend.emails.send({
+      from: defaultFrom,
+      to: adminEmail,
+      subject: `⚠️ [CLAWCRAFT Alert] ${subject}`,
+      html: emailHtml,
+    });
+  } catch (error) {
+    console.error("[Resend Error] Payment system alert email:", error);
+    return { error };
+  }
+}
+
+/**
  * Send Customer Shipping & Tracking Notification Email
  */
 export async function sendShippingUpdateEmail({

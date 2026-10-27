@@ -28,11 +28,24 @@ import {
   playNotificationChime,
   ADMIN_SOUND_CHANGE_EVENT,
 } from "@/lib/admin/attention";
+import { formatISTDate } from "@/lib/pdf/order-slip";
 
 export default function AdminSettingsPage() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [paymentGateway, setPaymentGateway] = useState<{
+    mode: "LIVE" | "TEST" | "MISSING" | "INVALID";
+    isProduction: boolean;
+    isTestKeyInProduction: boolean;
+    isLiveKeyOutsideProduction: boolean;
+    maskedKeyId: string;
+    webhookSecretConfigured: boolean;
+    lastWebhookReceivedAt: string | null;
+    lastVerifiedPaymentAt: string | null;
+    isGatewayReady: boolean;
+  } | null>(null);
 
   // Form states (converted to rupees for user convenience)
   const [flatShippingRupees, setFlatShippingRupees] = useState(149);
@@ -113,6 +126,9 @@ export default function AdminSettingsPage() {
           setGstin(s.gstin || "");
           setWatermarkText(s.watermark_text || "CLAWCRAFT STUDIO");
         }
+        if (data.paymentGateway) {
+          setPaymentGateway(data.paymentGateway);
+        }
       } catch (err) {
         console.error("Failed to load settings", err);
       } finally {
@@ -159,6 +175,7 @@ export default function AdminSettingsPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save settings");
+      if (data.paymentGateway) setPaymentGateway(data.paymentGateway);
 
       showToast("Studio settings saved successfully!", "success");
     } catch (err: unknown) {
@@ -192,6 +209,104 @@ export default function AdminSettingsPage() {
       </div>
 
       <form onSubmit={handleSaveSettings} className="space-y-6">
+        {/* Payments Card (STEP 3 Requirements: Mode, Masked Key, Webhook Secret, Timestamps) */}
+        <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
+          <FiligreeCorner position="top-right" size={14} />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-acid" />
+              <span>Razorpay Payments Gateway</span>
+            </h2>
+
+            {paymentGateway && (
+              <span
+                className={`w-fit px-2.5 py-0.5 rounded-sm font-mono text-[10px] uppercase font-bold tracking-widest ${
+                  paymentGateway.mode === "LIVE"
+                    ? "bg-acid/15 border border-acid/50 text-acid"
+                    : paymentGateway.mode === "TEST"
+                    ? paymentGateway.isTestKeyInProduction
+                      ? "bg-blood/20 border border-blood text-blood"
+                      : "bg-amber-500/20 border border-amber-500/50 text-amber-400"
+                    : "bg-void border border-subtle text-muted"
+                }`}
+              >
+                MODE: {paymentGateway.mode}
+              </span>
+            )}
+          </div>
+
+          {/* Red Warning Banner when in Production with Test Keys */}
+          {paymentGateway?.isTestKeyInProduction && (
+            <div className="p-3 bg-blood/10 border border-blood/40 rounded-sm text-blood font-mono text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-blood" />
+              <span>
+                <strong>Razorpay is in TEST mode</strong> — Real payments cannot be processed in production. Update your Vercel Production Environment Variables with live credentials (rzp_live_...).
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div className="p-3 bg-void border border-subtle/70 rounded-sm space-y-1">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                API Key ID (Public)
+              </span>
+              <p className="font-mono text-xs text-bone font-bold">
+                {paymentGateway?.maskedKeyId || "Not configured"}
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                Secret is kept server-only and never exposed.
+              </span>
+            </div>
+
+            <div className="p-3 bg-void border border-subtle/70 rounded-sm space-y-1">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                Webhook Secret Status
+              </span>
+              <p className="font-mono text-xs font-bold flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    paymentGateway?.webhookSecretConfigured ? "bg-acid" : "bg-blood"
+                  }`}
+                />
+                <span className={paymentGateway?.webhookSecretConfigured ? "text-acid" : "text-blood"}>
+                  {paymentGateway?.webhookSecretConfigured ? "Configured (Active)" : "Not configured"}
+                </span>
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                Validates HMAC signatures for captured/failed events.
+              </span>
+            </div>
+
+            <div className="p-3 bg-void border border-subtle/70 rounded-sm space-y-1">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                Last Webhook Received
+              </span>
+              <p className="font-mono text-xs text-bone">
+                {paymentGateway?.lastWebhookReceivedAt
+                  ? formatISTDate(paymentGateway.lastWebhookReceivedAt)
+                  : "Never received"}
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                Syncs orders if customer closes browser after paying.
+              </span>
+            </div>
+
+            <div className="p-3 bg-void border border-subtle/70 rounded-sm space-y-1">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                Last Verified Payment
+              </span>
+              <p className="font-mono text-xs text-acid font-bold">
+                {paymentGateway?.lastVerifiedPaymentAt
+                  ? formatISTDate(paymentGateway.lastVerifiedPaymentAt)
+                  : "No verified payments recorded"}
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                Only recorded after server-side bank verification.
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Shipping & Delivery Configuration */}
         <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
           <FiligreeCorner position="top-right" size={14} />

@@ -53,6 +53,22 @@ export default function CheckoutPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [processingText, setProcessingText] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<{
+    orderId: string;
+    orderNumber: string;
+    publicToken?: string;
+    totalPaise: number;
+    razorpayOrderId: string;
+    keyId: string;
+    prefill: {
+      name: string;
+      email: string;
+      contact: string;
+    };
+    isSimulation?: boolean;
+  } | null>(null);
   const [razorpayScriptLoaded, setRazorpayScriptLoaded] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -168,10 +184,18 @@ export default function CheckoutPage() {
       return;
     }
 
+    // If we already have a pending order for this cart, reuse it to prevent duplicate orders
+    if (pendingOrder && formData.paymentMethod !== "cod") {
+      openRazorpayStandardCheckout(pendingOrder);
+      return;
+    }
+
     setSubmitting(true);
+    setProcessingText("Securing order reservation...");
+    setPaymentNotice(null);
 
     try {
-      // 2. Call Server to Recalculate Prices & Create Order
+      // 2. Call Server to Recalculate Prices & Create Pending Order
       const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,185 +232,208 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 3. Launch Razorpay Checkout
-      const isPlaceholderKey =
-        orderData.keyId.includes("placeholder") ||
-        orderData.razorpayOrderId.startsWith("order_");
+      // 3. Online Razorpay Checkout
+      setPendingOrder(orderData);
 
-      if (isPlaceholderKey || !window.Razorpay) {
-        // Test Simulation Mode when live Razorpay credentials are not yet added
+      // EXPLICIT DEV SIMULATION: Dead-code eliminated in production builds
+      if (
+        process.env.NODE_ENV === "development" &&
+        process.env.NEXT_PUBLIC_ALLOW_PAYMENT_SIMULATION === "true" &&
+        orderData.isSimulation &&
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ) {
         const simulateConfirm = window.confirm(
-          `[RAZORPAY TEST MODE]\nOrder: ${orderData.orderNumber}\nAmount: ${formatINR(
+          `[DEV SIMULATION ONLY]\nOrder: ${orderData.orderNumber}\nAmount: ${formatINR(
             orderData.totalPaise
-          )}\n\nClick OK to simulate a SUCCESSFUL Razorpay payment, or Cancel to view the order with Payment Pending status.`
+          )}\n\nClick OK to simulate verified payment on localhost.`
         );
 
         if (simulateConfirm) {
-          const testPaymentId = `pay_test_mock_${Date.now()}`;
-          let confirmedOrderId = orderData.orderId;
-
-          try {
-            const saveRes = await fetch("/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customer_name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                address: formData.addressLine1 + (formData.addressLine2 ? `, ${formData.addressLine2}` : ""),
-                city: formData.city,
-                state: formData.state,
-                pincode: formData.pincode,
-                items: items.map((i) => ({
-                  productId: i.productId || i.id,
-                  product_title: i.title,
-                  unit_price: i.pricePaise / 100,
-                  unit_price_paise: i.pricePaise,
-                  quantity: i.quantity,
-                  variantId: i.variantId,
-                  variantLabel: i.variantLabel,
-                  selectedOption: i.selectedOption,
-                  image_url: i.imageUrl,
-                })),
-                subtotal: subtotal / 100,
-                subtotal_paise: subtotal,
-                discount_amount: discount / 100,
-                discount_paise: discount,
-                shipping_amount: shippingFee / 100,
-                shipping_fee_paise: shippingFee,
-                total_amount: finalTotal / 100, // Discounted amount saved
-                total_paise: finalTotal,
-                payment_id: testPaymentId,
-                payment_status: "paid",
-              }),
-            });
-            const savedData = await saveRes.json();
-            if (savedData?.orderId) {
-              confirmedOrderId = savedData.orderId;
-            }
-          } catch (err) {
-            console.error("Orders save notice:", err);
+          setProcessingText("Securing order... (dev simulation verification)");
+          const verifyRes = await fetch("/api/razorpay/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: orderData.orderId,
+              razorpay_order_id: orderData.razorpayOrderId,
+              razorpay_payment_id: `pay_sim_${Date.now()}`,
+              razorpay_signature: "dev_simulated_sig",
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.verified) {
+            clearCart();
+            toast.success("Payment Received", "Your test order is confirmed!");
+            router.push(`/checkout/success?order_id=${verifyData.orderId}`);
+            return;
           }
-
-          clearCart();
-          toast.success("Payment Received", "Your test order is confirmed!");
-          router.push(`/checkout/success?order_id=${confirmedOrderId}`);
-          return;
-        } else {
-          // Navigating to order page with pending payment status
-          clearCart();
-          toast.info("Payment Pending", "Order created with payment pending.");
-          router.push(`/checkout/success?order_id=${orderData.orderId}`);
-          return;
         }
       }
 
-      // Real or Sandbox Razorpay Checkout Modal
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.totalPaise,
-        currency: "INR",
-        name: "CLAWCRAFT STUDIO",
-        description: `Order ${orderData.orderNumber}`,
-        order_id: orderData.razorpayOrderId,
-        prefill: {
-          name: formData.name,
-          email: formData.email,
-          contact: formData.phone,
-        },
-        theme: {
-          color: "#B8FF1F",
-          backdrop_color: "#050505",
-        },
-        handler: async function (response: any) {
-          let confirmedOrderId = orderData.orderId;
-          try {
-            // STEP 2: Call /api/orders to save the real order to Supabase
-            try {
-              const saveRes = await fetch("/api/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  customer_name: formData.name,
-                  email: formData.email,
-                  phone: formData.phone,
-                  address: formData.addressLine1 + (formData.addressLine2 ? `, ${formData.addressLine2}` : ""),
-                  city: formData.city,
-                  state: formData.state,
-                  pincode: formData.pincode,
-                  items: items.map((i) => ({
-                    productId: i.productId || i.id,
-                    product_title: i.title,
-                    unit_price: i.pricePaise / 100,
-                    unit_price_paise: i.pricePaise,
-                    quantity: i.quantity,
-                    variantId: i.variantId,
-                    variantLabel: i.variantLabel,
-                    selectedOption: i.selectedOption,
-                    image_url: i.imageUrl,
-                  })),
-                  subtotal: subtotal / 100,
-                  subtotal_paise: subtotal,
-                  discount_amount: discount / 100,
-                  discount_paise: discount,
-                  shipping_amount: shippingFee / 100,
-                  shipping_fee_paise: shippingFee,
-                  total_amount: finalTotal / 100, // Discounted amount saved
-                  total_paise: finalTotal,
-                  payment_id: response.razorpay_payment_id,
-                  payment_status: "paid",
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                }),
-              });
-              const savedData = await saveRes.json();
-              if (savedData?.orderId) {
-                confirmedOrderId = savedData.orderId;
-              }
-            } catch (saveErr) {
-              console.error("[Save Order to Supabase Error]:", saveErr);
-            }
+      // Real Standard Checkout
+      await openRazorpayStandardCheckout(orderData);
+    } catch (err: any) {
+      console.error("[Checkout Initiation Error]:", err);
+      toast.error("Checkout Unavailable", err.message || "Failed to proceed to payment.");
+      setSubmitting(false);
+      setProcessingText(null);
+    }
+  };
 
-            // Also verify payment signature if endpoint available
-            try {
-              await fetch("/api/razorpay/verify-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  orderId: confirmedOrderId,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                }),
-              });
-            } catch (vErr) {
-              console.warn("Payment verification notice:", vErr);
-            }
+  /**
+   * Lazy loads Razorpay checkout.js and opens Standard Checkout
+   */
+  const openRazorpayStandardCheckout = async (orderData: NonNullable<typeof pendingOrder>) => {
+    setSubmitting(true);
+    setProcessingText("Initializing Razorpay Checkout...");
 
-            clearCart();
-            toast.success("Payment Confirmed", "Your sculpture order is placed.");
-            router.push(`/checkout/success?order_id=${confirmedOrderId}`);
-          } catch (err) {
-            console.error("Handler error:", err);
-            clearCart();
-            router.push(`/checkout/success?order_id=${orderData.orderId}`);
+    // 1. Lazy load Razorpay script if not already present
+    const isLoaded = await ensureRazorpayLoaded();
+    if (!isLoaded || !window.Razorpay) {
+      setSubmitting(false);
+      setProcessingText(null);
+      toast.error(
+        "Gateway Loading Error",
+        "Payment gateway failed to load. Please check your internet connection or disable ad-blockers."
+      );
+      return;
+    }
+
+    setProcessingText("Opening Razorpay modal...");
+
+    const upiFirst = process.env.NEXT_PUBLIC_RAZORPAY_UPI_FIRST !== "false";
+
+    // 2. Razorpay Standard Checkout Options
+    const options: any = {
+      key: orderData.keyId,
+      amount: orderData.totalPaise,
+      currency: "INR",
+      name: "CLAWCRAFT",
+      description: `Order ${orderData.orderNumber}`,
+      order_id: orderData.razorpayOrderId,
+      prefill: orderData.prefill,
+      theme: {
+        color: "#B8FF1F",
+        backdrop_color: "#050505",
+      },
+      retry: {
+        enabled: true,
+        max_count: 3,
+      },
+      timeout: 900, // 15 minutes
+      handler: async function (response: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      }) {
+        setSubmitting(true);
+        setProcessingText("Securing order... Verifying payment with studio bank...");
+
+        try {
+          // Strictly call server-side verify API
+          const verifyRes = await fetch("/api/razorpay/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: orderData.orderId,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (!verifyRes.ok || !verifyData.verified) {
+            throw new Error(
+              verifyData.error || "Payment verification failed. Please contact studio support."
+            );
           }
+
+          clearCart();
+          toast.success("Payment Confirmed", "Your sculpture order is placed.");
+          const successUrl = verifyData.publicToken
+            ? `/checkout/success?order_id=${verifyData.orderId}&t=${verifyData.publicToken}`
+            : `/checkout/success?order_id=${verifyData.orderId}`;
+          router.push(successUrl);
+        } catch (vErr: any) {
+          console.error("[Payment Verification Error]:", vErr);
+          toast.error("Verification Notice", vErr.message || "Payment status pending verification.");
+          setPaymentNotice(
+            "Payment was processed by bank, but studio verification is still syncing. Check status in your order page."
+          );
+          setSubmitting(false);
+          setProcessingText(null);
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          setSubmitting(false);
+          setProcessingText(null);
+          setPaymentNotice("Payment not completed. Your reservation is held — click Retry Payment below to continue.");
+          toast.info("Payment not completed", "You can retry checkout anytime.");
         },
-        modal: {
-          ondismiss: function () {
-            toast.info("Payment Cancelled", "You can retry checkout anytime.");
-            setSubmitting(false);
+      },
+    };
+
+    // UPI First Display Config
+    if (upiFirst) {
+      options.config = {
+        display: {
+          blocks: {
+            upi: {
+              name: "Pay via UPI",
+              instruments: [{ method: "upi" }],
+            },
+          },
+          sequence: ["block.upi"],
+          preferences: {
+            show_default_blocks: true,
           },
         },
       };
+    }
 
+    try {
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (err: any) {
-      console.error("Checkout error:", err);
-      toast.error("Checkout Error", err.message || "Failed to proceed to payment.");
+    } catch (rzpOpenErr) {
+      console.error("[Razorpay Modal Open Error]:", rzpOpenErr);
       setSubmitting(false);
+      setProcessingText(null);
+      toast.error("Payment Gateway Error", "Could not open checkout modal. Please retry.");
     }
+  };
+
+  /**
+   * Helper to ensure checkout.js is loaded
+   */
+  const ensureRazorpayLoaded = (): Promise<boolean> => {
+    if (typeof window === "undefined") return Promise.resolve(false);
+    if ((window as any).Razorpay) return Promise.resolve(true);
+
+    return new Promise((resolve) => {
+      const existing = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+      if (existing) {
+        if ((window as any).Razorpay) {
+          resolve(true);
+          return;
+        }
+        existing.addEventListener("load", () => resolve(true));
+        existing.addEventListener("error", () => resolve(false));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
   };
 
   return (
@@ -842,19 +889,43 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Payment Notice / Retry Banner */}
+                {paymentNotice && (
+                  <div className="p-3.5 rounded-sm bg-amber-500/10 border border-amber-500/40 text-amber-300 font-mono text-xs space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <span>{paymentNotice}</span>
+                    </div>
+                    {pendingOrder && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => openRazorpayStandardCheckout(pendingOrder)}
+                          disabled={submitting}
+                          className="px-3 py-1.5 rounded-sm bg-acid text-void font-bold uppercase text-[11px] tracking-wider hover:bg-bone transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          Retry Payment for Order #{pendingOrder.orderNumber}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Pay Button with double-click protection */}
                 <ClawButton
                   type="submit"
                   variant="primary"
                   size="lg"
                   disabled={submitting}
-                  className="w-full h-14 text-base"
+                  className="w-full h-14 text-base cursor-pointer"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      Securing Order...
+                      {processingText || "Securing Order..."}
                     </>
+                  ) : pendingOrder && formData.paymentMethod !== "cod" ? (
+                    `Retry Payment (${formatINR(finalTotal)})`
                   ) : formData.paymentMethod === "cod" ? (
                     `Confirm COD Order (${formatINR(finalTotal)})`
                   ) : (
