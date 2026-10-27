@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminOrderById, updateAdminOrder } from "@/lib/admin/admin-data";
-import { assertAdminApi } from "@/lib/auth/admin-auth";
+import { assertAdminApi, logAdminAudit } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +8,9 @@ interface RouteParams {
   params: { id: string };
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const data = await getAdminOrderById(params.id);
@@ -26,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();
@@ -44,6 +44,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     if (!updated) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "order_status_update",
+      target: `order_${params.id}_to_${body.status || "updated"}`,
+      ip,
+      success: true,
+    });
 
     return NextResponse.json({ success: true, order: updated });
   } catch (error) {

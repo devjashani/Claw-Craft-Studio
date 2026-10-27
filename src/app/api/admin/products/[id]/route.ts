@@ -4,6 +4,7 @@ import {
   saveAdminProduct,
   deleteAdminProduct,
 } from "@/lib/admin/admin-data";
+import { assertAdminApi, logAdminAudit } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,11 @@ interface RouteParams {
   params: { id: string };
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
+    if (!isAdmin) return errorResponse;
+
     const product = await getAdminProductById(params.id);
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -26,9 +30,22 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
+    if (!isAdmin) return errorResponse;
+
     const body = await req.json();
     body.id = params.id;
     const updated = await saveAdminProduct(body);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "product_update",
+      target: `product_${params.id}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true, product: updated });
   } catch (error) {
     console.error("[Admin Product PUT]", error);
@@ -36,9 +53,22 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
+    if (!isAdmin) return errorResponse;
+
     await deleteAdminProduct(params.id);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "product_delete",
+      target: `product_${params.id}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Admin Product DELETE]", error);

@@ -11,7 +11,7 @@ const resendSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();

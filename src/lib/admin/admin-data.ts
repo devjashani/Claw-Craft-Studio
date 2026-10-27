@@ -183,31 +183,6 @@ export async function getAdminKPIs() {
     // Fallback
   }
 
-  // If Supabase not reached, check session demo orders if any exist
-  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
-    const memStore = (global as any).__clawcraftDemoOrdersStore;
-    const unique = new Map<string, any>();
-    for (const item of Object.values(memStore) as any[]) {
-      if (item?.order?.id && !unique.has(item.order.id)) {
-        unique.set(item.order.id, item.order);
-      }
-    }
-    const orders = Array.from(unique.values());
-    const totalRevenuePaise = orders
-      .filter((o) => (o.payment_status || o.status) === "paid")
-      .reduce((sum, o) => sum + (o.total_paise || 0), 0);
-    const pendingShipmentsCount = orders.filter(
-      (o) => (o.status as string) === "pending" || o.status === "processing" || o.status === "pending_payment"
-    ).length;
-
-    return {
-      totalRevenuePaise,
-      totalOrdersCount: orders.length,
-      pendingShipmentsCount,
-      lowStockCount: initialProductsFallback.filter((p) => p.stock_count <= 3).length,
-    };
-  }
-
   return {
     totalRevenuePaise: 0,
     totalOrdersCount: 0,
@@ -430,24 +405,6 @@ export async function getAdminOrders(statusFilter?: string): Promise<Order[]> {
     // Fallback
   }
 
-  // If Supabase not reached, check session demo orders if any exist
-  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
-    const memStore = (global as any).__clawcraftDemoOrdersStore;
-    const unique = new Map<string, Order>();
-    for (const item of Object.values(memStore) as any[]) {
-      if (item?.order?.id && !unique.has(item.order.id)) {
-        unique.set(item.order.id, item.order);
-      }
-    }
-    const list = Array.from(unique.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    if (statusFilter && statusFilter !== "all") {
-      return list.filter((o) => o.status === statusFilter);
-    }
-    return list;
-  }
-
   return [];
 }
 
@@ -465,20 +422,6 @@ export async function getAdminOrderById(
     }
   } catch {
     // Fallback
-  }
-
-  // Fallback to active demo order in session
-  if (typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
-    const memStore = (global as any).__clawcraftDemoOrdersStore;
-    const found = memStore[id];
-    if (found) {
-      return found;
-    }
-    for (const entry of Object.values(memStore) as any[]) {
-      if (entry?.order?.id === id || entry?.order?.order_number === id) {
-        return entry;
-      }
-    }
   }
 
   return { order: null, items: [] };

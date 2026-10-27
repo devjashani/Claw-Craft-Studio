@@ -4,15 +4,15 @@ import {
   getAdminCustomRequests,
   updateAdminCustomRequestStatus,
 } from "@/lib/admin/admin-data";
-import { assertAdminApi } from "@/lib/auth/admin-auth";
+import { assertAdminApi, logAdminAudit } from "@/lib/auth/admin-auth";
 import { addCustomRequestAdminEvent } from "@/lib/custom-requests/service";
 import { CustomRequestStatus } from "@/types/database.types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const requests = await getAdminCustomRequests();
@@ -34,7 +34,7 @@ const addEventSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const { isAdmin, session, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();
@@ -60,10 +60,19 @@ export async function POST(req: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error || "Failed to update custom request." },
-        { status: 500 }
+        { error: result.error || "Failed to add event" },
+        { status: 400 }
       );
     }
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "custom_request_event",
+      target: `request_${requestId}_status_${status || "note"}`,
+      ip,
+      success: true,
+    });
 
     return NextResponse.json({ success: true, eventId: result.eventId });
   } catch (error) {
@@ -74,7 +83,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();
@@ -84,6 +93,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     await updateAdminCustomRequestStatus(id, status, admin_notes);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "custom_request_status_update",
+      target: `request_${id}_status_${status}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Admin Custom Requests PATCH]", error);

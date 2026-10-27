@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
-import { getAdminSession } from "@/lib/auth/admin-auth";
+import { headers } from "next/headers";
+import { requireAdmin, getAdminSession } from "@/lib/auth/admin-auth";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminCountsProvider } from "@/components/admin/admin-counts-context";
 import { getRazorpayGatewayStatus } from "@/lib/razorpay";
@@ -22,13 +23,29 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getAdminSession();
+  const headersList = headers();
+  const pathname = headersList.get("x-pathname") || "";
+
+  // The login page renders without requiring an existing admin session
+  if (pathname === "/admin/login") {
+    return <main className="flex-1 w-full">{children}</main>;
+  }
+
+  // All other /admin routes strictly mandate a verified admin session on the server
+  let adminSession = null;
+  try {
+    adminSession = await requireAdmin();
+  } catch {
+    // If headers or direct render fails requireAdmin, fallback to getAdminSession
+    adminSession = await getAdminSession();
+  }
+
   const paymentStatus = await getRazorpayGatewayStatus();
 
   return (
     <AdminCountsProvider>
       <div className="min-h-screen bg-void text-bone selection:bg-acid selection:text-void flex flex-col font-body">
-        {session && <AdminNav userEmail={session.email} />}
+        {adminSession && <AdminNav userEmail={adminSession.email} />}
 
         {/* Red Banner when Razorpay is in TEST mode in Production */}
         {paymentStatus.isTestKeyInProduction && (

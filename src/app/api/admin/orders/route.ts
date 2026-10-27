@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const { searchParams } = new URL(req.url);

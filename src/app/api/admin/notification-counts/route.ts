@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     // 1. Strict Server-Side Admin Authentication Check
-    const { isAdmin, session, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin || !session) {
       return errorResponse || NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }

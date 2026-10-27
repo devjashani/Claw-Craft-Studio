@@ -21,6 +21,14 @@ import {
   VolumeX,
   Bell,
   AlertTriangle,
+  KeyRound,
+  ShieldAlert,
+  QrCode,
+  History,
+  CheckCircle2,
+  Trash2,
+  Copy,
+  Lock,
 } from "lucide-react";
 import {
   getAdminSoundEnabled,
@@ -45,6 +53,60 @@ export default function AdminSettingsPage() {
     lastWebhookReceivedAt: string | null;
     lastVerifiedPaymentAt: string | null;
     isGatewayReady: boolean;
+  } | null>(null);
+
+  // Security & 2FA State
+  const [mfaData, setMfaData] = useState<{
+    isEnrolled: boolean;
+    isEnforced: boolean;
+    aal: string;
+    verifiedFactorId: string | null;
+    email: string;
+  } | null>(null);
+
+  const [enrollment, setEnrollment] = useState<{
+    active: boolean;
+    factorId: string | null;
+    qrCodeUrl: string | null;
+    secret: string | null;
+    verificationCode: string;
+    loading: boolean;
+  }>({
+    active: false,
+    factorId: null,
+    qrCodeUrl: null,
+    secret: null,
+    verificationCode: "",
+    loading: false,
+  });
+
+  const [unenrollState, setUnenrollState] = useState<{
+    active: boolean;
+    code: string;
+    loading: boolean;
+  }>({
+    active: false,
+    code: "",
+    loading: false,
+  });
+
+  const [auditLog, setAuditLog] = useState<{
+    events: Array<{
+      id: string;
+      adminEmail: string;
+      action: string;
+      target: string | null;
+      ipHash: string | null;
+      userAgent: string | null;
+      success: boolean;
+      createdAtIST: string;
+    }>;
+    lastLogin: {
+      email: string;
+      timeIST: string;
+      ipHash: string | null;
+      userAgent: string | null;
+    } | null;
   } | null>(null);
 
   // Form states (converted to rupees for user convenience)
@@ -136,8 +198,130 @@ export default function AdminSettingsPage() {
       }
     };
 
+    const fetchMfa = async () => {
+      try {
+        const res = await fetch("/api/admin/mfa");
+        const data = await res.json();
+        if (data.success) {
+          setMfaData(data);
+        }
+      } catch (err) {
+        console.error("Failed to load MFA status", err);
+      }
+    };
+
+    const fetchAuditLog = async () => {
+      try {
+        const res = await fetch("/api/admin/audit-log");
+        const data = await res.json();
+        if (data.success) {
+          setAuditLog(data);
+        }
+      } catch (err) {
+        console.error("Failed to load audit log", err);
+      }
+    };
+
     fetchSettings();
+    fetchMfa();
+    fetchAuditLog();
   }, []);
+
+  const handleStartEnroll = async () => {
+    setEnrollment((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch("/api/admin/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enroll" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to start enrollment.");
+      setEnrollment({
+        active: true,
+        factorId: data.factorId,
+        qrCodeUrl: data.qrCodeUrl,
+        secret: data.secret,
+        verificationCode: "",
+        loading: false,
+      });
+    } catch (err: any) {
+      showToast(err.message, "error");
+      setEnrollment((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleConfirmEnroll = async () => {
+    if (!enrollment.verificationCode || enrollment.verificationCode.length !== 6) {
+      showToast("Please enter a valid 6-digit code.", "error");
+      return;
+    }
+    setEnrollment((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch("/api/admin/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          factorId: enrollment.factorId,
+          code: enrollment.verificationCode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed.");
+      showToast("Two-factor authenticator activated successfully!", "success");
+      setEnrollment({
+        active: false,
+        factorId: null,
+        qrCodeUrl: null,
+        secret: null,
+        verificationCode: "",
+        loading: false,
+      });
+      // Refresh MFA and audit log
+      const mfaRes = await fetch("/api/admin/mfa");
+      const mfaJson = await mfaRes.json();
+      if (mfaJson.success) setMfaData(mfaJson);
+      const auditRes = await fetch("/api/admin/audit-log");
+      const auditJson = await auditRes.json();
+      if (auditJson.success) setAuditLog(auditJson);
+    } catch (err: any) {
+      showToast(err.message, "error");
+      setEnrollment((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleUnenroll = async () => {
+    if (!unenrollState.code || unenrollState.code.length !== 6) {
+      showToast("Please enter your current 6-digit code to confirm removal.", "error");
+      return;
+    }
+    setUnenrollState((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch("/api/admin/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "unenroll",
+          factorId: mfaData?.verifiedFactorId,
+          code: unenrollState.code,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove authenticator.");
+      showToast("Authenticator removed successfully.", "info");
+      setUnenrollState({ active: false, code: "", loading: false });
+      const mfaRes = await fetch("/api/admin/mfa");
+      const mfaJson = await mfaRes.json();
+      if (mfaJson.success) setMfaData(mfaJson);
+      const auditRes = await fetch("/api/admin/audit-log");
+      const auditJson = await auditRes.json();
+      if (auditJson.success) setAuditLog(auditJson);
+    } catch (err: any) {
+      showToast(err.message, "error");
+      setUnenrollState((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,6 +487,312 @@ export default function AdminSettingsPage() {
               <span className="text-[10px] font-mono text-muted block">
                 Only recorded after server-side bank verification.
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Security, 2FA & Audit Log Card (STEP 5 & 7 Requirements) */}
+        <div className="relative bg-ash border border-subtle p-6 rounded space-y-5">
+          <FiligreeCorner position="top-right" size={14} />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
+              <Lock className="w-4 h-4 text-acid" />
+              <span>Security & Two-Factor Authentication (TOTP)</span>
+            </h2>
+
+            {mfaData && (
+              <span
+                className={`w-fit px-2.5 py-0.5 rounded-sm font-mono text-[10px] uppercase font-bold tracking-widest ${
+                  mfaData.isEnrolled
+                    ? "bg-acid/15 border border-acid/50 text-acid"
+                    : "bg-amber-500/20 border border-amber-500/50 text-amber-400"
+                }`}
+              >
+                {mfaData.isEnrolled ? "2FA: ACTIVE" : "2FA: NOT ENROLLED"}
+              </span>
+            )}
+          </div>
+
+          <p className="text-[11px] text-muted font-mono">
+            Protect your artisan portal with time-based one-time password (TOTP) two-factor authentication via Google Authenticator, 1Password, or Authy.
+          </p>
+
+          {/* MFA Status & Enrollment Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 bg-void border border-subtle/70 rounded-sm space-y-2">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                Two-Factor Status
+              </span>
+              <p className="font-mono text-xs text-bone font-bold flex items-center gap-2">
+                {mfaData?.isEnrolled ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-acid" />
+                    <span>Enrolled (Active)</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <span>Not Enrolled</span>
+                  </>
+                )}
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                Server Enforcement:{" "}
+                <strong className={mfaData?.isEnforced ? "text-acid" : "text-bone"}>
+                  {mfaData?.isEnforced ? "STRICT (ADMIN_REQUIRE_MFA=true)" : "Optional"}
+                </strong>
+              </span>
+            </div>
+
+            <div className="p-4 bg-void border border-subtle/70 rounded-sm space-y-2">
+              <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                Last Verified Admin Login
+              </span>
+              <p className="font-mono text-xs text-acid font-bold">
+                {auditLog?.lastLogin?.timeIST || "No login recorded"}
+              </p>
+              <span className="text-[10px] font-mono text-muted block">
+                IP Hash: {auditLog?.lastLogin?.ipHash || "N/A"}
+              </span>
+            </div>
+          </div>
+
+          {/* MFA Action Block */}
+          {!mfaData?.isEnrolled && !enrollment.active && (
+            <div className="p-4 bg-void border border-dashed border-acid/40 rounded-sm space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="font-heading text-sm uppercase text-bone flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-acid" />
+                    <span>Enrol Authenticator App</span>
+                  </h3>
+                  <p className="text-[11px] text-muted font-mono mt-0.5">
+                    Link your phone to require a 6-digit code on every login.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStartEnroll}
+                  disabled={enrollment.loading}
+                  className="px-4 py-2 bg-acid text-void font-bold text-xs font-mono uppercase tracking-wider rounded hover:bg-bone transition-colors"
+                >
+                  {enrollment.loading ? "INITIALIZING..." : "START ENROLLMENT"}
+                </button>
+              </div>
+
+              {/* Guidance on How to Enforce */}
+              <div className="p-3 bg-ash/50 border border-subtle/60 rounded text-[11px] font-mono text-muted space-y-1">
+                <p className="text-bone font-bold">How to safely enforce 2FA without lockout:</p>
+                <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                  <li>Click &quot;START ENROLLMENT&quot; above to scan the QR code and verify your 6-digit code.</li>
+                  <li>Go to your Vercel Project Settings &rarr; Environment Variables.</li>
+                  <li>Add <code className="text-acid">ADMIN_REQUIRE_MFA=true</code> and redeploy.</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {/* Enrollment In Progress Form */}
+          {enrollment.active && (
+            <div className="p-5 bg-void border border-acid/60 rounded-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-sm uppercase text-acid flex items-center gap-2">
+                  <QrCode className="w-4 h-4" />
+                  <span>Scan QR Code with Authenticator</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEnrollment((prev) => ({ ...prev, active: false }))}
+                  className="text-xs text-muted hover:text-bone underline font-mono"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                {enrollment.qrCodeUrl && (
+                  <div className="p-2 bg-white rounded shadow-md shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={enrollment.qrCodeUrl}
+                      alt="Authenticator QR Code"
+                      width={160}
+                      height={160}
+                      className="block"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3 flex-1 min-w-0">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase text-muted tracking-wider block">
+                      Manual Secret Key
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-xs font-mono text-acid bg-ash px-2.5 py-1.5 rounded border border-subtle select-all break-all">
+                        {enrollment.secret}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (enrollment.secret) {
+                            navigator.clipboard.writeText(enrollment.secret);
+                            showToast("Secret key copied to clipboard", "success");
+                          }
+                        }}
+                        className="p-1.5 text-muted hover:text-bone border border-subtle rounded hover:bg-ash transition-colors"
+                        title="Copy Key"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-muted mb-1">
+                      Enter 6-Digit Code from App
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="123456"
+                        value={enrollment.verificationCode}
+                        onChange={(e) =>
+                          setEnrollment((prev) => ({
+                            ...prev,
+                            verificationCode: e.target.value.replace(/\D/g, ""),
+                          }))
+                        }
+                        className="w-36 bg-ash border border-acid/60 px-3 py-1.5 text-center text-sm font-mono tracking-widest text-acid focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleConfirmEnroll}
+                        disabled={enrollment.loading || enrollment.verificationCode.length !== 6}
+                        className="px-4 py-1.5 bg-acid text-void font-bold text-xs font-mono uppercase tracking-wider rounded hover:bg-bone disabled:opacity-50 transition-colors"
+                      >
+                        {enrollment.loading ? "VERIFYING..." : "ACTIVATE 2FA"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enrolled & Manage Section */}
+          {mfaData?.isEnrolled && (
+            <div className="p-4 bg-void border border-subtle/70 rounded-sm space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="space-y-0.5">
+                  <p className="font-mono text-xs text-bone flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-acid" />
+                    <span>Authenticator protection is active.</span>
+                  </p>
+                  <p className="text-[10px] text-muted font-mono">
+                    Factor ID: {mfaData.verifiedFactorId}
+                  </p>
+                </div>
+
+                {!unenrollState.active ? (
+                  <button
+                    type="button"
+                    onClick={() => setUnenrollState({ active: true, code: "", loading: false })}
+                    disabled={mfaData.isEnforced}
+                    className="px-3 py-1.5 bg-void hover:bg-blood/20 border border-blood/40 text-blood text-xs font-mono uppercase rounded disabled:opacity-40 transition-colors"
+                    title={mfaData.isEnforced ? "Cannot unenroll while ADMIN_REQUIRE_MFA is enforced." : "Remove Factor"}
+                  >
+                    Remove Authenticator
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="Current 6-digit code"
+                      value={unenrollState.code}
+                      onChange={(e) =>
+                        setUnenrollState((prev) => ({
+                          ...prev,
+                          code: e.target.value.replace(/\D/g, ""),
+                        }))
+                      }
+                      className="w-36 bg-ash border border-blood/50 px-2 py-1 text-center text-xs font-mono text-bone focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUnenroll}
+                      disabled={unenrollState.loading || unenrollState.code.length !== 6}
+                      className="px-3 py-1 bg-blood text-white font-bold text-xs font-mono uppercase rounded disabled:opacity-50"
+                    >
+                      {unenrollState.loading ? "REMOVING..." : "CONFIRM"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUnenrollState({ active: false, code: "", loading: false })}
+                      className="text-xs text-muted hover:text-bone underline font-mono"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {mfaData.isEnforced && (
+                <p className="text-[10px] font-mono text-amber-400">
+                  ⚠️ Note: Authenticator removal is blocked because <code className="text-bone">ADMIN_REQUIRE_MFA=true</code> is enforced on the server.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Audit Log Table (Last 20 Events) */}
+          <div className="pt-2">
+            <h3 className="font-heading text-xs uppercase tracking-wider text-muted mb-2 flex items-center gap-2">
+              <History className="w-3.5 h-3.5 text-steel" />
+              <span>Recent Security Events (Last 20 Actions)</span>
+            </h3>
+
+            <div className="border border-subtle/70 rounded-sm overflow-hidden bg-void">
+              <div className="max-h-56 overflow-y-auto">
+                <table className="w-full text-left font-mono text-[11px]">
+                  <thead className="bg-ash border-b border-subtle text-muted uppercase text-[10px] sticky top-0">
+                    <tr>
+                      <th className="py-2 px-3">Timestamp (IST)</th>
+                      <th className="py-2 px-3">Action</th>
+                      <th className="py-2 px-3">Target</th>
+                      <th className="py-2 px-3">IP Hash</th>
+                      <th className="py-2 px-3 text-right">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-subtle/40 text-bone">
+                    {auditLog && auditLog.events.length > 0 ? (
+                      auditLog.events.map((evt) => (
+                        <tr key={evt.id} className="hover:bg-ash/40">
+                          <td className="py-2 px-3 text-muted">{evt.createdAtIST}</td>
+                          <td className="py-2 px-3 font-bold text-acid">{evt.action}</td>
+                          <td className="py-2 px-3 text-muted truncate max-w-[140px]">{evt.target || "—"}</td>
+                          <td className="py-2 px-3 text-muted">{evt.ipHash || "—"}</td>
+                          <td className="py-2 px-3 text-right">
+                            {evt.success ? (
+                              <span className="text-acid text-[10px] uppercase font-bold">Success</span>
+                            ) : (
+                              <span className="text-blood text-[10px] uppercase font-bold">Failed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-muted">
+                          No audit log events recorded yet. Run the migration to start logging events.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

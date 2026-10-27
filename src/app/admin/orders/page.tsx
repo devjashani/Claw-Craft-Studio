@@ -115,6 +115,16 @@ export default function AdminOrdersPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Record audit event for data export
+    fetch("/api/admin/audit-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "orders_export_csv",
+        target: `${filteredOrders.length}_records`,
+      }),
+    }).catch(() => {});
   };
 
   const statusColors: Record<string, string> = {

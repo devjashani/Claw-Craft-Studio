@@ -1,65 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME, isAllowedAdminEmail } from "@/lib/auth/admin-auth";
+import {
+  ADMIN_COOKIE_NAME,
+  verifySignedAdminTokenEdge,
+  verifyAdminRequestOrigin,
+} from "@/lib/auth/admin-token";
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isApiAdmin = pathname.startsWith("/api/admin");
+  const isAdminPage = pathname.startsWith("/admin");
 
-  // 1. Intercept Admin API Routes (/api/admin/...)
-  if (pathname.startsWith("/api/admin")) {
-    // Allow admin authentication endpoint itself
-    if (pathname === "/api/admin/auth") {
-      return NextResponse.next();
-    }
-
-    const adminCookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-    let hasValidAdminSession = false;
-
-    if (adminCookie === "active" && process.env.NODE_ENV !== "production") {
-      hasValidAdminSession = true;
-    } else if (adminCookie?.startsWith("user_")) {
-      const email = decodeURIComponent(adminCookie.replace("user_", ""));
-      hasValidAdminSession = isAllowedAdminEmail(email);
-    }
-
-    if (!hasValidAdminSession) {
-      return NextResponse.json(
-        {
-          error: "Forbidden: You do not have artisan admin privileges.",
-          code: "FORBIDDEN_ADMIN_API",
-        },
-        { status: 403 }
-      );
-    }
-
+  if (!isApiAdmin && !isAdminPage) {
     return NextResponse.next();
   }
 
-  // 2. Intercept Admin UI Routes (/admin/...)
-  if (pathname.startsWith("/admin")) {
-    const adminCookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-    let hasValidAdminSession = false;
+  // Set request header with x-pathname for Server Component layout context
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
 
-    if (adminCookie === "active" && process.env.NODE_ENV !== "production") {
-      hasValidAdminSession = true;
-    } else if (adminCookie?.startsWith("user_")) {
-      const email = decodeURIComponent(adminCookie.replace("user_", ""));
-      hasValidAdminSession = isAllowedAdminEmail(email);
+  // Security headers to attach to all admin responses
+  const attachSecurityHeaders = (res: NextResponse) => {
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    res.headers.set("X-Frame-Options", "DENY");
+    res.headers.set("Referrer-Policy", "no-referrer");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    return res;
+  };
+
+  // 1. Intercept Admin API Routes (/api/admin/...)
+  if (isApiAdmin) {
+    // Allow admin authentication endpoint itself
+    if (pathname === "/api/admin/auth") {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      return attachSecurityHeaders(res);
     }
+
+    // Origin check for mutation requests
+    if (!verifyAdminRequestOrigin(req)) {
+      const forbidden = NextResponse.json(
+        { error: "Forbidden: Cross-site request rejected.", code: "CSRF_DETECTED" },
+        { status: 403 }
+      );
+      return attachSecurityHeaders(forbidden);
+    }
+
+    const adminCookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const session = await verifySignedAdminTokenEdge(adminCookie);
+
+    if (!session) {
+      const unauth = NextResponse.json(
+        {
+          error: "Unauthorized: Active administrator session required.",
+          code: "UNAUTHORIZED_ADMIN",
+        },
+        { status: 401 }
+      );
+      return attachSecurityHeaders(unauth);
+    }
+
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    return attachSecurityHeaders(res);
+  }
+
+  // 2. Intercept Admin UI Pages (/admin/...)
+  if (isAdminPage) {
+    const adminCookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const session = await verifySignedAdminTokenEdge(adminCookie);
 
     // Visiting /admin/login
     if (pathname === "/admin/login") {
-      if (hasValidAdminSession) {
-        return NextResponse.redirect(new URL("/admin", req.url));
+      if (session) {
+        // If already authenticated, redirect to /admin dashboard
+        const redirectRes = NextResponse.redirect(new URL("/admin", req.url));
+        return attachSecurityHeaders(redirectRes);
       }
-      return NextResponse.next();
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      return attachSecurityHeaders(res);
     }
 
-    // If unauthenticated or regular customer on any other /admin page
-    if (!hasValidAdminSession) {
+    // Visiting any protected /admin page without valid signed session
+    if (!session) {
       const loginUrl = new URL("/admin/login", req.url);
       loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      const redirectRes = NextResponse.redirect(loginUrl);
+      return attachSecurityHeaders(redirectRes);
     }
+
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    return attachSecurityHeaders(res);
   }
 
   return NextResponse.next();

@@ -4,6 +4,7 @@ import { getAdminOrderById } from "@/lib/admin/admin-data";
 import { formatINR } from "@/lib/utils";
 import { Printer, ArrowLeft, ShieldAlert } from "lucide-react";
 import { siteConfig, getSiteHost } from "@/lib/site";
+import { requireAdmin } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ interface InvoicePageProps {
 }
 
 export default async function OrderInvoicePage({ params }: InvoicePageProps) {
+  await requireAdmin();
   const { order, items } = await getAdminOrderById(params.id);
 
   if (!order) {

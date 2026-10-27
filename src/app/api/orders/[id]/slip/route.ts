@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrder, verifyOrderAccess } from "@/lib/orders/order-service";
-import { getAdminSession } from "@/lib/auth/admin-auth";
+import { getAdminSession, logAdminAudit } from "@/lib/auth/admin-auth";
 import { buildSlipPdf } from "@/lib/pdf/order-slip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,6 +57,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     if (!access.allowed) {
       return new NextResponse("Access forbidden. Valid token, phone, or account required.", {
         status: 403,
+      });
+    }
+
+    if (isAdmin && adminSession?.email) {
+      await logAdminAudit({
+        adminEmail: adminSession.email,
+        action: "order_slip_download",
+        target: `order_${order.order_number}`,
+        ip: ip.split(",")[0].trim(),
+        success: true,
       });
     }
 

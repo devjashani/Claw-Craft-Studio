@@ -280,6 +280,129 @@ export async function sendAdminPaymentAlertEmail({
 }
 
 /**
+ * Send Admin Login Success Notification Email
+ */
+export async function sendAdminLoginSuccessEmail({
+  adminEmail,
+  istTime,
+  ip,
+  userAgent,
+}: {
+  adminEmail: string;
+  istTime: string;
+  ip: string;
+  userAgent?: string;
+}) {
+  const notifyEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!notifyEmail) return { success: false, skipped: true };
+
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `security@${siteHost}`;
+
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes("placeholder")) {
+    console.log(`[Email Mock] Admin Login Success: ${adminEmail} at ${istTime} from ${ip}`);
+    return { success: true, mock: true };
+  }
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <body style="background-color: #050505; color: #F2F0EA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px;">
+        <div style="max-width: 560px; margin: 0 auto; background-color: #111214; border: 1px solid #22262E; border-top: 3px solid #B8FF1F; padding: 28px; border-radius: 4px;">
+          <h2 style="color: #F2F0EA; font-size: 20px; margin-top: 0; letter-spacing: 1px;">🛡️ Studio Admin Login Notification</h2>
+          <p style="color: #C9CDD2; font-size: 14px; line-height: 1.6;">
+            A verified administrator session was established for the CLAWCRAFT Studio control panel.
+          </p>
+          <div style="background-color: #050505; border: 1px solid #22262E; padding: 16px; margin: 20px 0; border-radius: 4px; font-family: monospace; font-size: 13px;">
+            <p style="margin: 4px 0; color: #8E959F;">ADMIN ACCOUNT: <strong style="color: #B8FF1F;">${adminEmail}</strong></p>
+            <p style="margin: 4px 0; color: #8E959F;">TIMESTAMP: <strong style="color: #F2F0EA;">${istTime}</strong></p>
+            <p style="margin: 4px 0; color: #8E959F;">IP ADDRESS: <strong style="color: #F2F0EA;">${ip}</strong></p>
+            <p style="margin: 4px 0; color: #8E959F;">CLIENT: <span style="color: #C9CDD2;">${userAgent || "Browser Client"}</span></p>
+          </div>
+          <p style="font-size: 12px; color: #8E959F; margin-top: 20px; line-height: 1.5;">
+            If you did not authorize this session, immediately change your Supabase administrator password and review active sessions.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    return await resend.emails.send({
+      from: defaultFrom,
+      to: notifyEmail,
+      subject: `🛡️ [CLAWCRAFT] Admin Login: ${adminEmail} (${ip})`,
+      html: emailHtml,
+    });
+  } catch (error) {
+    console.error("[Resend Error] Admin login success email:", error);
+    return { error };
+  }
+}
+
+/**
+ * Send Admin Login Lockout Security Alert Email (5+ Failed Attempts)
+ */
+export async function sendAdminLoginLockoutAlertEmail({
+  ip,
+  attempts,
+  istTime,
+  attemptedEmail,
+}: {
+  ip: string;
+  attempts: number;
+  istTime: string;
+  attemptedEmail?: string;
+}) {
+  const notifyEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!notifyEmail) return { success: false, skipped: true };
+
+  const siteHost = getSiteHost();
+  const defaultFrom = process.env.EMAIL_FROM || `security@${siteHost}`;
+
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes("placeholder")) {
+    console.log(`[Email Mock] Security Lockout Alert: ${attempts} failed attempts from ${ip} at ${istTime}`);
+    return { success: true, mock: true };
+  }
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <body style="background-color: #050505; color: #F2F0EA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px;">
+        <div style="max-width: 560px; margin: 0 auto; background-color: #111214; border: 1px solid #ff4d4f; border-top: 4px solid #ff4d4f; padding: 28px; border-radius: 4px;">
+          <h2 style="color: #ff4d4f; font-size: 20px; margin-top: 0; letter-spacing: 1px;">🚨 SECURITY ALERT: Repeated Failed Admin Logins</h2>
+          <p style="color: #C9CDD2; font-size: 14px; line-height: 1.6;">
+            A client reached <strong>${attempts} consecutive failed login attempts</strong> against the studio control portal. A temporary 15-minute rate-limit lockout has been enforced.
+          </p>
+          <div style="background-color: #050505; border: 1px solid #22262E; padding: 16px; margin: 20px 0; border-radius: 4px; font-family: monospace; font-size: 13px;">
+            <p style="margin: 4px 0; color: #8E959F;">CLIENT IP: <strong style="color: #ff4d4f;">${ip}</strong></p>
+            <p style="margin: 4px 0; color: #8E959F;">ATTEMPTS: <strong style="color: #F2F0EA;">${attempts} failed attempts</strong></p>
+            <p style="margin: 4px 0; color: #8E959F;">TIME (IST): <strong style="color: #F2F0EA;">${istTime}</strong></p>
+            ${attemptedEmail ? `<p style="margin: 4px 0; color: #8E959F;">TARGET EMAIL: <span style="color: #C9CDD2;">${attemptedEmail}</span></p>` : ""}
+            <p style="margin: 4px 0; color: #8E959F;">ACTION TAKEN: <strong style="color: #B8FF1F;">15-Minute IP Lockout Active</strong></p>
+          </div>
+          <p style="font-size: 12px; color: #8E959F; margin-top: 20px; line-height: 1.5;">
+            Our server-side guards have automatically blocked further attempts. No sensitive administrator access was granted.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    return await resend.emails.send({
+      from: defaultFrom,
+      to: notifyEmail,
+      subject: `🚨 [SECURITY ALERT] 5+ Failed Admin Login Attempts (${ip})`,
+      html: emailHtml,
+    });
+  } catch (error) {
+    console.error("[Resend Error] Admin lockout alert email:", error);
+    return { error };
+  }
+}
+
+/**
  * Send Customer Shipping & Tracking Notification Email
  */
 export async function sendShippingUpdateEmail({

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getAdminProductById } from "@/lib/admin/admin-data";
 import { ProductForm } from "@/components/admin/product-form";
 import { ArrowLeft } from "lucide-react";
+import { requireAdmin } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ interface EditProductPageProps {
 }
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
+  await requireAdmin();
+
   const product = await getAdminProductById(params.id);
 
   if (!product) {

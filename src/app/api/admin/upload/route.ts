@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const formData = await req.formData();

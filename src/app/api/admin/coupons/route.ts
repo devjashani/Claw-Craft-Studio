@@ -5,13 +5,13 @@ import {
   deleteAdminCoupon,
   toggleCouponActive,
 } from "@/lib/admin/admin-data";
-import { assertAdminApi } from "@/lib/auth/admin-auth";
+import { assertAdminApi, logAdminAudit } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const coupons = await getAdminCoupons();
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();
@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
     }
 
     const saved = await saveAdminCoupon(body);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "coupon_create",
+      target: `code_${body.code.toUpperCase()}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true, coupon: saved });
   } catch (error) {
     console.error("[Admin Coupons POST]", error);
@@ -45,7 +55,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const body = await req.json();
@@ -55,6 +65,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     await toggleCouponActive(id, is_active);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "coupon_update",
+      target: `coupon_${id}_active_${is_active}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Admin Coupons PATCH]", error);
@@ -64,7 +84,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { isAdmin, errorResponse } = await assertAdminApi();
+    const { isAdmin, session, errorResponse } = await assertAdminApi(req);
     if (!isAdmin) return errorResponse;
 
     const { searchParams } = new URL(req.url);
@@ -74,6 +94,16 @@ export async function DELETE(req: NextRequest) {
     }
 
     await deleteAdminCoupon(id);
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    await logAdminAudit({
+      adminEmail: session?.email || "admin",
+      action: "coupon_delete",
+      target: `coupon_${id}`,
+      ip,
+      success: true,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Admin Coupons DELETE]", error);

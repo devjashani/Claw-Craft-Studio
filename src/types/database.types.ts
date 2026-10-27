@@ -583,6 +583,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      admin_audit_log: {
+        Row: {
+          id: string;
+          admin_email: string;
+          action: string;
+          target: string | null;
+          ip_hash: string | null;
+          user_agent: string | null;
+          success: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_email: string;
+          action: string;
+          target?: string | null;
+          ip_hash?: string | null;
+          user_agent?: string | null;
+          success?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          admin_email?: string;
+          action?: string;
+          target?: string | null;
+          ip_hash?: string | null;
+          user_agent?: string | null;
+          success?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

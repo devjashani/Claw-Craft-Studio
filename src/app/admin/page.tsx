@@ -16,17 +16,13 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-import { getAdminSession } from "@/lib/auth/admin-auth";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
-  const session = await getAdminSession();
-  if (!session) {
-    redirect("/admin/login");
-  }
+  await requireAdmin();
   let orders: any[] = [];
   let products: any[] = [];
   let customRequests: any[] = [];
@@ -50,20 +46,6 @@ export default async function AdminDashboardPage() {
     }
   } catch (err) {
     console.error("[Admin Dashboard] Supabase fetch error:", err);
-  }
-
-  // If DB was unreachable and demo orders were placed in local memory during session
-  if (orders.length === 0 && typeof global !== "undefined" && (global as any).__clawcraftDemoOrdersStore) {
-    const memStore = (global as any).__clawcraftDemoOrdersStore;
-    const unique = new Map<string, any>();
-    for (const item of Object.values(memStore) as any[]) {
-      if (item?.order?.id && !unique.has(item.order.id)) {
-        unique.set(item.order.id, item.order);
-      }
-    }
-    orders = Array.from(unique.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
   }
 
   // Use catalog fallback for product stock alerts if table is empty

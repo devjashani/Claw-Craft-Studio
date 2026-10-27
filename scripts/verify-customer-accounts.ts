@@ -52,17 +52,23 @@ assert(
   "Customer with forged user_metadata.role='admin' is rejected (client-editable fields never trusted)"
 );
 
-// Allowed admin email in environment / fallback
+const primaryAdminEmail = (process.env.ADMIN_EMAILS || "").split(",")[0]?.trim() || "testadmin@clawcraft.in";
+const originalAdminEmails = process.env.ADMIN_EMAILS;
+process.env.ADMIN_EMAILS = `${primaryAdminEmail},another@domain.com`;
+
+// Allowed admin email in environment
 assert(
-  isAllowedAdminEmail("admin@clawcraft.in") === true,
-  "Authorized email admin@clawcraft.in is accepted"
+  isAllowedAdminEmail(primaryAdminEmail) === true,
+  `Authorized email ${primaryAdminEmail} is accepted`
 );
 
 // Case-insensitive test on allowed email
 assert(
-  isAllowedAdminEmail("Admin@ClawCraft.IN ") === true,
+  isAllowedAdminEmail(` ${primaryAdminEmail.toUpperCase()} `) === true,
   "Allowed admin email is verified case-insensitively with trimmed whitespace"
 );
+
+process.env.ADMIN_EMAILS = originalAdminEmails;
 
 
 // --------------------------------------------------------------------------
