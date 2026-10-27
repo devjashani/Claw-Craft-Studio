@@ -23,13 +23,13 @@ import { OrderStatus, CustomRequestStatus } from "@/types/database.types";
  * - 'cancelled': Closed without fulfillment.
  * - 'refunded': Money returned, fulfillment aborted.
  */
-export const ATTENTION_ORDER_STATUSES: readonly OrderStatus[] = ["paid"] as const;
+export const ATTENTION_ORDER_STATUSES: readonly OrderStatus[] = ["paid", "awaiting_confirmation"] as const;
 
 /**
  * Valid payment statuses for orders that need attention.
  * Guarantees failed or unconfirmed payments are never counted.
  */
-export const ATTENTION_ORDER_PAYMENT_STATUSES = ["paid", "cod"] as const;
+export const ATTENTION_ORDER_PAYMENT_STATUSES = ["paid", "cod", "cod_pending"] as const;
 
 /**
  * INQUIRIES THAT NEED ATTENTION:

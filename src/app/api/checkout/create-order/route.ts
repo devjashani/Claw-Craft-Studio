@@ -9,11 +9,20 @@ import {
 } from "@/lib/razorpay";
 import { getProducts, getProductImageUrl } from "@/lib/products";
 import { checkoutFormSchema } from "@/lib/validation/checkout";
-import { Coupon } from "@/types/shop";
+import { Coupon, Order, OrderItem } from "@/types/shop";
 import { createOrder, CreateOrderInputItem } from "@/lib/orders/order-service";
-import { sendAdminPaymentAlertEmail } from "@/lib/resend";
+import {
+  sendAdminPaymentAlertEmail,
+  sendCustomerCodOrderEmail,
+  sendAdminCodOrderAlertEmail,
+} from "@/lib/resend";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteHost } from "@/lib/site";
+import { getAdminSettings } from "@/lib/admin/admin-data";
+import {
+  checkIsLocalDeliveryPincode,
+  calculateShippingFeeServer,
+} from "@/lib/settings/shipping-promo";
 
 export const dynamic = "force-dynamic";
 
@@ -206,21 +215,117 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6. Shipping Calculation
-    const FREE_SHIPPING_THRESHOLD_PAISE = 299900; // Rs 2,999
-    const FLAT_SHIPPING_PAISE = 14900; // Rs 149
-    const shippingFeePaise =
-      calculatedSubtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE
-        ? 0
-        : FLAT_SHIPPING_PAISE;
+    // 6. Fetch Studio Settings & Delivery Mode
+    const settings = await getAdminSettings();
+    const isLocal = await checkIsLocalDeliveryPincode(data.pincode);
+    const deliveryMode: "local" | "courier" = isLocal ? "local" : "courier";
 
-    // 7. Final Recomputed Total (Paise)
-    const calculatedTotalPaise = Math.max(
-      0,
-      calculatedSubtotalPaise - calculatedDiscountPaise + shippingFeePaise
+    // 7. Calculate Server Shipping Fee (Promo-aware, never trusting client)
+    const shippingFeePaise = calculateShippingFeeServer(
+      calculatedSubtotalPaise,
+      deliveryMode,
+      settings
     );
 
-    // 8. KEY MODE GUARD & ENVIRONMENT VALIDATION (for Online Razorpay Orders)
+    // 8. Handle Cash on Delivery (COD) Validation (Strictly enforced on SERVER)
+    let codFeePaise = 0;
+    let calculatedTotalPaise = 0;
+
+    if (isCod) {
+      // (a) Must be enabled in settings
+      if (!settings.cod_enabled && !settings.enable_cod) {
+        return NextResponse.json(
+          { error: "Sorry, Cash on Delivery is not available at your address. Please pay online." },
+          { status: 400 }
+        );
+      }
+
+      // (b) Must be in active local Jaipur PIN code list
+      if (deliveryMode !== "local") {
+        return NextResponse.json(
+          { error: "Sorry, Cash on Delivery is not available at your address. Please pay online." },
+          { status: 400 }
+        );
+      }
+
+      // (c) Calculate COD fee
+      codFeePaise = Math.max(0, Math.round((Number(settings.cod_fee_inr) || 0) * 100));
+
+      // (d) Final Recomputed Total with COD fee
+      calculatedTotalPaise = Math.max(
+        0,
+        calculatedSubtotalPaise - calculatedDiscountPaise + shippingFeePaise + codFeePaise
+      );
+
+      // (e) Must be within max order value limit
+      const maxCodPaise = (Number(settings.cod_max_order_value_inr) || 5000) * 100;
+      if (calculatedTotalPaise > maxCodPaise) {
+        return NextResponse.json(
+          { error: "Sorry, Cash on Delivery is not available at your address. Please pay online." },
+          { status: 400 }
+        );
+      }
+
+      // (f) Phone number blocked check
+      const cleanPhone = data.phone.replace(/\D/g, "");
+      const rawBlocked = settings.cod_blocked_phones;
+      const blockedList: string[] = Array.isArray(rawBlocked)
+        ? rawBlocked
+        : typeof rawBlocked === "string"
+        ? (rawBlocked as string).split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+        : [];
+      const isBlocked = blockedList.some((bp) => {
+        const cleanBp = bp.replace(/\D/g, "");
+        return cleanBp && (cleanPhone.endsWith(cleanBp) || cleanBp.endsWith(cleanPhone));
+      });
+      if (isBlocked) {
+        return NextResponse.json(
+          { error: "Sorry, Cash on Delivery is not available at your address. Please pay online." },
+          { status: 400 }
+        );
+      }
+
+      // (g) Check max open COD orders per phone
+      const maxOpen = Number(settings.cod_max_open_orders_per_phone) || 2;
+      try {
+        const supabase = createAdminClient();
+        const last10Phone = cleanPhone.slice(-10);
+        const { count } = await supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("payment_method", "cod")
+          .in("status", ["awaiting_confirmation", "confirmed", "out_for_delivery"])
+          .ilike("customer_phone", `%${last10Phone}%`);
+        if (typeof count === "number" && count >= maxOpen) {
+          return NextResponse.json(
+            {
+              error: `You have reached the maximum of ${maxOpen} open Pay on Delivery orders. Please pay online or wait for current orders to be delivered.`,
+            },
+            { status: 400 }
+          );
+        }
+      } catch (openErr) {
+        console.warn("[COD open orders check warning]:", openErr);
+      }
+
+      // (h) Per-phone rate limit
+      const phoneRateCheck = checkRateLimit(`checkout-phone-${cleanPhone}`, 5, 60 * 1000);
+      if (!phoneRateCheck.success) {
+        return NextResponse.json(
+          { error: "Too many orders attempted from this phone number. Please wait a moment and try again." },
+          { status: 429 }
+        );
+      }
+    } else {
+      codFeePaise = 0;
+      // For online Razorpay orders: enforce minimum payable amount of Rs 1 (100 paise)
+      calculatedTotalPaise = Math.max(
+        100,
+        calculatedSubtotalPaise - calculatedDiscountPaise + shippingFeePaise
+      );
+    }
+
+    // 9. KEY MODE GUARD & ENVIRONMENT VALIDATION (for Online Razorpay Orders)
     const hostHeader = req.headers.get("host");
     const simulationAllowed = isPaymentSimulationAllowed(hostHeader);
     let isDevSimulatedOrder = false;
@@ -254,7 +359,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 9. Extract authenticated user session server-side (NEVER from client body)
+    // 10. Extract authenticated user session server-side (NEVER from client body)
     let authenticatedUserId: string | null = null;
     try {
       const userSupabase = createClient();
@@ -266,7 +371,7 @@ export async function POST(req: NextRequest) {
       // Guest order
     }
 
-    // 10. Create Order with status 'pending_payment'
+    // 11. Create Order via Order Service
     const orderItemsForCreate: CreateOrderInputItem[] = orderItemsToInsert.map(
       (item, idx) => ({
         id: `item-${idx}`,
@@ -296,11 +401,13 @@ export async function POST(req: NextRequest) {
       subtotalPaise: calculatedSubtotalPaise,
       discountPaise: calculatedDiscountPaise,
       shippingFeePaise,
+      codFeePaise,
       totalPaise: calculatedTotalPaise,
       couponId: validCouponId,
       couponCode: data.couponCode,
       userId: authenticatedUserId,
       isPaid: false, // NEVER mark paid at creation
+      deliveryMode,
     });
 
     if (!orderResult.success || !orderResult.order) {
@@ -315,7 +422,7 @@ export async function POST(req: NextRequest) {
     const orderNumber = createdOrder.order_number;
     const publicToken = createdOrder.public_token;
 
-    // 11. Create Real Razorpay Order via SDK
+    // 12. Create Real Razorpay Order via SDK for online orders OR trigger COD notifications
     let razorpayOrderId: string | null = null;
 
     if (!isCod) {
@@ -371,9 +478,23 @@ export async function POST(req: NextRequest) {
           );
         }
       }
+    } else {
+      // 13. Cash on Delivery Email Notifications
+      Promise.allSettled([
+        sendCustomerCodOrderEmail({
+          order: createdOrder,
+          items: (orderResult.items || orderItemsToInsert) as OrderItem[],
+        }),
+        sendAdminCodOrderAlertEmail({
+          order: createdOrder,
+          items: (orderResult.items || orderItemsToInsert) as OrderItem[],
+        }),
+      ]).catch((notifyErr) => {
+        console.error("[COD notification error]:", notifyErr);
+      });
     }
 
-    // 12. Return only what the client needs (Never expose key secret or full payment objects)
+    // 14. Return only what the client needs
     return NextResponse.json({
       success: true,
       orderId: finalOrderId,
@@ -383,9 +504,12 @@ export async function POST(req: NextRequest) {
       subtotalPaise: calculatedSubtotalPaise,
       discountPaise: calculatedDiscountPaise,
       shippingFeePaise,
+      codFeePaise,
+      deliveryMode,
       razorpayOrderId,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() || "",
       isCod,
+      redirectUrl: isCod ? `/order/${finalOrderId}${publicToken ? `?token=${publicToken}` : ""}` : undefined,
       isSimulation: isDevSimulatedOrder,
       prefill: {
         name: data.name,

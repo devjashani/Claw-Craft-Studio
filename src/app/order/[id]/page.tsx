@@ -25,7 +25,7 @@ import { getBusinessContact } from "@/lib/contact";
 
 interface OrderPageProps {
   params: { id: string };
-  searchParams: { t?: string };
+  searchParams: { t?: string; token?: string };
 }
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ export default async function OrderConfirmationPage({
   searchParams,
 }: OrderPageProps) {
   const { id } = params;
-  const token = searchParams?.t;
+  const token = searchParams?.token || searchParams?.t;
 
   // 1. Fetch Order and Items from unified data layer
   const { order, items, isDemo } = await getOrder(id);
@@ -58,26 +58,41 @@ export default async function OrderConfirmationPage({
 
   const contact = getBusinessContact();
 
-  const isPaid = order.payment_status === "paid" || order.status === "paid";
+  const isPaid = order.payment_status === "paid" || order.status === "paid" || order.payment_status === "cod_collected";
   const isPending = order.payment_status === "pending_payment" || order.status === "pending_payment";
   const isCancelled = order.status === "cancelled" || order.status === "refunded";
+  const isLocal = order.delivery_mode === "local";
 
-  // Neutral fulfillment steps
-  const steps = [
-    { label: "Order received", status: "paid" },
-    { label: "Preparing", status: "processing" },
-    { label: "Shipped", status: "shipped" },
-    { label: "Delivered", status: "delivered" },
-  ];
+  // Fulfillment steps (Local Jaipur personal delivery vs National courier)
+  const steps = isLocal
+    ? [
+        { label: "Order received", status: "awaiting_confirmation" },
+        { label: "Confirmed", status: "confirmed" },
+        { label: "Out for delivery", status: "out_for_delivery" },
+        { label: "Delivered", status: "delivered" },
+      ]
+    : [
+        { label: "Order received", status: "paid" },
+        { label: "Preparing", status: "processing" },
+        { label: "Shipped", status: "shipped" },
+        { label: "Delivered", status: "delivered" },
+      ];
 
-  const currentStepIndex =
-    order.status === "delivered"
+  const currentStepIndex = isLocal
+    ? order.status === "delivered"
       ? 3
-      : order.status === "shipped"
+      : order.status === "out_for_delivery" || order.status === "shipped"
       ? 2
-      : order.status === "processing"
+      : order.status === "confirmed" || order.status === "processing"
       ? 1
-      : 0;
+      : 0
+    : order.status === "delivered"
+    ? 3
+    : order.status === "shipped"
+    ? 2
+    : order.status === "processing"
+    ? 1
+    : 0;
 
   const trackingId = order.tracking_id || order.tracking_number;
 
@@ -244,9 +259,31 @@ export default async function OrderConfirmationPage({
               })}
             </div>
 
-            {/* Courier & Tracking Section */}
+            {/* Fulfillment Mode & Tracking Section */}
             <div className="mt-6 p-4 rounded-sm bg-void border border-steel/20 text-xs font-mono">
-              {order.courier_name && trackingId ? (
+              {isLocal ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-acid uppercase tracking-wider font-bold flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-acid" /> Local delivery (Studio direct in Jaipur)
+                    </span>
+                    <p className="text-steel/80 mt-1">
+                      Our studio artisan will deliver directly to your address. No courier tracking needed.
+                    </p>
+                  </div>
+                  {order.payment_method === "cod" && (
+                    <div className="text-left sm:text-right font-mono">
+                      {order.payment_status === "cod_collected" ? (
+                        <span className="text-acid font-bold">PAID (CASH)</span>
+                      ) : (
+                        <span className="text-amber-400 font-bold">
+                          PAYMENT DUE ON DELIVERY: {formatINR(order.total_paise)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : order.courier_name && trackingId ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-steel">
                     Courier: <strong className="text-bone">{order.courier_name}</strong> • Tracking ID:{" "}

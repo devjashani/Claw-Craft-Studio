@@ -27,6 +27,7 @@ export type CustomRequest = Database["public"]["Tables"]["custom_requests"]["Row
 export type SiteSetting = Database["public"]["Tables"]["site_settings"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Address = Database["public"]["Tables"]["addresses"]["Row"];
+export type CodPincode = Database["public"]["Tables"]["cod_pincodes"]["Row"];
 
 export type ProductWithImages = Product;
 

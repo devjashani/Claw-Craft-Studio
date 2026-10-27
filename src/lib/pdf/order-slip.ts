@@ -257,9 +257,14 @@ export async function buildSlipPdf(
   currentY -= 18;
 
   // Document Title Banner & Status Stamp
-  const docTitle = isPaid
+  const isCod = order.payment_method === "cod";
+  const isCodCollected = isCod && (order.payment_status === "cod_collected" || Boolean((order as any).cod_collected_at));
+  const isOnlinePaid = (order.payment_status === "paid" || order.status === "paid") && !isDemo && !isCod;
+  const isFullyPaid = isOnlinePaid || isCodCollected;
+
+  const docTitle = isFullyPaid
     ? "OFFICIAL ORDER RECEIPT & PAYMENT SLIP"
-    : order.payment_method === "cod"
+    : isCod
     ? "ORDER CONFIRMATION (PAYMENT ON DELIVERY)"
     : "ORDER SUMMARY & PAYMENT NOTICE";
 
@@ -280,16 +285,24 @@ export async function buildSlipPdf(
     stampText = "DEMO - NOT A REAL PAYMENT";
     stampBorderColor = rgb(0.8, 0.4, 0.0); // Amber
     stampTextColor = rgb(0.8, 0.4, 0.0);
-  } else if (!isPaid) {
-    if (order.payment_method === "cod") {
-      stampText = "PAYMENT DUE ON DELIVERY";
-      stampBorderColor = rgb(0.2, 0.3, 0.6); // Blue
-      stampTextColor = rgb(0.2, 0.3, 0.6);
+  } else if (isCod) {
+    if (isCodCollected) {
+      const collectedDateStr = (order as any).cod_collected_at
+        ? formatISTDate((order as any).cod_collected_at)
+        : formatISTDate(order.updated_at);
+      stampText = `PAID (CASH) • ${collectedDateStr}`;
+      stampBorderColor = rgb(0.15, 0.55, 0.2); // Green
+      stampTextColor = rgb(0.15, 0.55, 0.2);
     } else {
-      stampText = "PAYMENT PENDING";
-      stampBorderColor = rgb(0.7, 0.2, 0.2); // Red
-      stampTextColor = rgb(0.7, 0.2, 0.2);
+      // Must print "PAYMENT DUE ON DELIVERY: Rs X" (no PAID stamp) until cash is collected
+      stampText = `PAYMENT DUE ON DELIVERY: ${formatSlipRupees(order.total_paise)}`;
+      stampBorderColor = rgb(0.75, 0.4, 0.1); // Amber
+      stampTextColor = rgb(0.75, 0.4, 0.1);
     }
+  } else if (!isFullyPaid) {
+    stampText = "PAYMENT PENDING";
+    stampBorderColor = rgb(0.7, 0.2, 0.2); // Red
+    stampTextColor = rgb(0.7, 0.2, 0.2);
   }
 
   const stampWidth = fontBold.widthOfTextAtSize(stampText, 9) + 16;

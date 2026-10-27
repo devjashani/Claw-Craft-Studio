@@ -81,6 +81,42 @@ export default async function AdminDashboardPage() {
   });
   const lowStockCount = lowStockProducts.length;
 
+  // 6. COD cash collected today (IST)
+  const todayISTDateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const codCollectedTodayPaise = orders.reduce((sum, o) => {
+    if (
+      o.payment_method === "cod" &&
+      (o.payment_status === "cod_collected" || o.cod_collected_at)
+    ) {
+      const collectedDate = o.cod_collected_at || o.updated_at;
+      if (collectedDate) {
+        const orderISTDate = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(collectedDate));
+
+        if (orderISTDate === todayISTDateStr) {
+          const amt =
+            typeof o.cod_amount_collected_paise === "number"
+              ? o.cod_amount_collected_paise
+              : typeof o.total_paise === "number"
+              ? o.total_paise
+              : 0;
+          return sum + amt;
+        }
+      }
+    }
+    return sum;
+  }, 0);
+
   // 5. Recent Orders: Fetch the 5 most recent orders (id, customer_name, city, total_amount, status)
   const recentOrders = orders.slice(0, 5);
   const pendingRequests = customRequests.filter(
@@ -127,7 +163,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Revenue */}
         <div className="relative bg-ash border border-subtle p-5 rounded">
           <FiligreeCorner position="top-right" size={14} />
@@ -171,6 +207,21 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
             <span>Awaiting courier pickup / AWB</span>
+          </div>
+        </div>
+
+        {/* COD Cash Collected Today */}
+        <div className="relative bg-ash border border-subtle p-5 rounded">
+          <FiligreeCorner position="top-right" size={14} />
+          <div className="flex items-center justify-between text-muted text-xs font-mono uppercase">
+            <span>COD Collected Today</span>
+            <Truck className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="mt-3 font-heading text-3xl text-emerald-400">
+            {formatINR(codCollectedTodayPaise)}
+          </div>
+          <div className="mt-2 text-[11px] font-mono text-muted">
+            <span>Cash in hand (Jaipur local)</span>
           </div>
         </div>
 

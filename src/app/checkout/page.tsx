@@ -75,17 +75,202 @@ export default function CheckoutPage() {
     discountPaise: number;
   } | null>(null);
 
-  const FREE_SHIPPING_THRESHOLD_PAISE = 299900; // Rs 2,999
-  const FLAT_SHIPPING_PAISE = 14900; // Rs 149
+  const [codSettings, setCodSettings] = useState<{
+    codEnabled: boolean;
+    codFeeInr: number;
+    codFeePaise: number;
+    maxOrderValueInr: number;
+    confirmationNote?: string;
+    localDeliveryWindow?: string;
+    freeShippingPromo?: {
+      active: boolean;
+      scope: "all" | "local";
+      endsAtFormatted?: string;
+    };
+    flatShippingPaise?: number;
+    freeShippingThresholdPaise?: number;
+  } | null>(null);
 
+  const [codAvailability, setCodAvailability] = useState<{
+    checked: boolean;
+    available: boolean;
+    isLocal: boolean;
+    areaName?: string;
+    loading: boolean;
+  }>({
+    checked: false,
+    available: false,
+    isLocal: false,
+    loading: false,
+  });
+
+  const [codDisqualifiedNotice, setCodDisqualifiedNotice] = useState<string | null>(null);
+
+  // Subtotal & Coupon
   const subtotal = subtotalPaise();
   const discount = appliedCoupon ? appliedCoupon.discountPaise : 0;
-  const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD_PAISE || subtotal === 0;
-  const shippingFee = isFreeShipping ? 0 : FLAT_SHIPPING_PAISE;
-  const finalTotal = Math.max(0, subtotal - discount + shippingFee);
 
-  const enableCod = process.env.NEXT_PUBLIC_ENABLE_COD === "true";
+  // Free shipping promo calculation
+  const promoInfo = codSettings?.freeShippingPromo;
+  const isPromoActive = Boolean(
+    promoInfo?.active &&
+      (promoInfo.scope === "all" || (promoInfo.scope === "local" && codAvailability.isLocal))
+  );
+
+  const flatShippingPaise = codSettings?.flatShippingPaise ?? 14900;
+  const freeThresholdPaise = codSettings?.freeShippingThresholdPaise ?? 299900;
+  const isThresholdFreeShipping = subtotal >= freeThresholdPaise || subtotal === 0;
+
+  const isFreeShipping = isPromoActive || isThresholdFreeShipping;
+  const shippingFee = isFreeShipping ? 0 : flatShippingPaise;
+
+  // COD fee & Total calculation
+  const isCodSelected = formData.paymentMethod === "cod";
+  const codFeePaise = isCodSelected ? (codSettings?.codFeePaise ?? 0) : 0;
+
+  const basePayableWithoutCod = Math.max(0, subtotal - discount + shippingFee);
+  const finalTotal = isCodSelected
+    ? Math.max(0, basePayableWithoutCod + codFeePaise)
+    : Math.max(100, basePayableWithoutCod); // Razorpay minimum payable Rs 1
+
+  const enableCod = codSettings !== null ? codSettings.codEnabled : (process.env.NEXT_PUBLIC_ENABLE_COD === "true");
+  const maxLimitPaise = (codSettings?.maxOrderValueInr ?? 5000) * 100;
+  const isOverMaxCodLimit = basePayableWithoutCod > maxLimitPaise;
+  const isPincodeValid6Digits = /^[1-9][0-9]{5}$/.test((formData.pincode || "").trim());
+  const isCodDisabled = !isPincodeValid6Digits || !codAvailability.available || isOverMaxCodLimit;
+
   const { user, profile, isAuthenticated } = useAuth();
+
+  // 1. Initial load: fetch studio settings (COD & Promo status)
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchInitialSettings() {
+      try {
+        const res = await fetch("/api/checkout/check-cod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pincode: "" }),
+        });
+        const data = await res.json();
+        if (isMounted && res.ok) {
+          setCodSettings({
+            codEnabled: data.codEnabled ?? false,
+            codFeeInr: data.codFeeInr || 0,
+            codFeePaise: data.codFeePaise || 0,
+            maxOrderValueInr: data.maxOrderValueInr || 5000,
+            confirmationNote: data.confirmationNote,
+            localDeliveryWindow: data.localDeliveryWindow,
+            freeShippingPromo: data.freeShippingPromo,
+            flatShippingPaise: data.flatShippingPaise ?? 14900,
+            freeShippingThresholdPaise: data.freeShippingThresholdPaise ?? 299900,
+          });
+        }
+      } catch {
+        // Fallback silently
+      }
+    }
+    fetchInitialSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Debounced PIN code lookup when 6-digit PIN is entered
+  useEffect(() => {
+    const pin = formData.pincode.trim();
+    if (!/^[1-9][0-9]{5}$/.test(pin)) {
+      setCodAvailability({
+        checked: false,
+        available: false,
+        isLocal: false,
+        loading: false,
+      });
+      return;
+    }
+
+    let isCancelled = false;
+    setCodAvailability((prev) => ({ ...prev, loading: true }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/checkout/check-cod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pincode: pin }),
+        });
+        const data = await res.json();
+        if (isCancelled) return;
+
+        if (res.ok) {
+          const available = Boolean(data.codAvailable);
+          const isLocal = Boolean(data.isLocal);
+
+          setCodAvailability({
+            checked: true,
+            available,
+            isLocal,
+            areaName: data.areaName,
+            loading: false,
+          });
+
+          if (data.codEnabled !== undefined) {
+            setCodSettings((prev) => ({
+              ...prev,
+              codEnabled: data.codEnabled,
+              codFeeInr: data.codFeeInr ?? prev?.codFeeInr ?? 0,
+              codFeePaise: data.codFeePaise ?? prev?.codFeePaise ?? 0,
+              maxOrderValueInr: data.maxOrderValueInr ?? prev?.maxOrderValueInr ?? 5000,
+              confirmationNote: data.confirmationNote ?? prev?.confirmationNote,
+              localDeliveryWindow: data.localDeliveryWindow ?? prev?.localDeliveryWindow,
+              freeShippingPromo: data.freeShippingPromo ?? prev?.freeShippingPromo,
+              flatShippingPaise: data.flatShippingPaise ?? prev?.flatShippingPaise ?? 14900,
+              freeShippingThresholdPaise: data.freeShippingThresholdPaise ?? prev?.freeShippingThresholdPaise ?? 299900,
+            }));
+          }
+
+          if (!available && formData.paymentMethod === "cod") {
+            setFormData((f) => ({ ...f, paymentMethod: "razorpay" }));
+            setCodDisqualifiedNotice(
+              "Sorry, Cash on Delivery is not available at your address. Please pay online."
+            );
+          } else if (available) {
+            setCodDisqualifiedNotice(null);
+          }
+        } else {
+          setCodAvailability({
+            checked: true,
+            available: false,
+            isLocal: false,
+            loading: false,
+          });
+        }
+      } catch {
+        if (!isCancelled) {
+          setCodAvailability({
+            checked: true,
+            available: false,
+            isLocal: false,
+            loading: false,
+          });
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.pincode, formData.paymentMethod]);
+
+  // 3. Auto-disqualify COD if cart exceeds max order value limit
+  useEffect(() => {
+    if (formData.paymentMethod === "cod" && isOverMaxCodLimit) {
+      setFormData((f) => ({ ...f, paymentMethod: "razorpay" }));
+      setCodDisqualifiedNotice(
+        "Sorry, Cash on Delivery is not available at your address. Please pay online."
+      );
+    }
+  }, [formData.paymentMethod, isOverMaxCodLimit]);
 
   // Prefill coordinates for authenticated collectors with saved default address
   useEffect(() => {
@@ -706,6 +891,13 @@ export default function CheckoutPage() {
                   3. PAYMENT METHOD
                 </h2>
 
+                {codDisqualifiedNotice && (
+                  <div className="mb-4 p-3.5 rounded-sm bg-blood/10 border border-blood/40 text-blood font-mono text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-blood shrink-0 mt-0.5" />
+                    <span>{codDisqualifiedNotice}</span>
+                  </div>
+                )}
+
                 <div className="space-y-3 font-mono text-xs">
                   <label
                     className={`flex items-start gap-3 p-4 rounded-sm border cursor-pointer transition-colors ${
@@ -720,7 +912,7 @@ export default function CheckoutPage() {
                       value="razorpay"
                       checked={formData.paymentMethod === "razorpay"}
                       onChange={handleChange}
-                      className="mt-1 text-acid focus:ring-acid"
+                      className="mt-1 text-acid focus:ring-acid cursor-pointer"
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
@@ -741,27 +933,77 @@ export default function CheckoutPage() {
 
                   {enableCod && (
                     <label
-                      className={`flex items-start gap-3 p-4 rounded-sm border cursor-pointer transition-colors ${
-                        formData.paymentMethod === "cod"
-                          ? "border-acid bg-acid/10 text-bone"
-                          : "border-steel/20 bg-void/50 text-steel hover:border-steel/40"
+                      className={`flex items-start gap-3 p-4 rounded-sm border transition-colors ${
+                        isCodDisabled
+                          ? "opacity-50 cursor-not-allowed border-steel/20 bg-void/30 text-steel/60"
+                          : formData.paymentMethod === "cod"
+                          ? "border-acid bg-acid/10 text-bone cursor-pointer"
+                          : "border-steel/20 bg-void/50 text-steel hover:border-steel/40 cursor-pointer"
                       }`}
                     >
                       <input
                         type="radio"
                         name="paymentMethod"
                         value="cod"
+                        disabled={isCodDisabled}
                         checked={formData.paymentMethod === "cod"}
-                        onChange={handleChange}
-                        className="mt-1 text-acid focus:ring-acid"
+                        onChange={(e) => {
+                          if (!isCodDisabled) {
+                            handleChange(e);
+                            setCodDisqualifiedNotice(null);
+                          }
+                        }}
+                        className="mt-1 text-acid focus:ring-acid disabled:opacity-50"
                       />
                       <div className="flex-1">
-                        <strong className="text-bone uppercase tracking-wider text-sm flex items-center gap-2">
-                          <Truck className="w-4 h-4 text-acid" /> Cash on Delivery
-                        </strong>
+                        <div className="flex items-center justify-between">
+                          <strong className="text-bone uppercase tracking-wider text-sm flex items-center gap-2">
+                            <Truck className="w-4 h-4 text-acid" /> Pay on Delivery
+                          </strong>
+                          {codAvailability.available && (
+                            <span className="text-acid text-[10px] uppercase font-bold tracking-wider">
+                              JAIPUR LOCAL
+                            </span>
+                          )}
+                        </div>
                         <p className="text-steel/80 font-sans text-xs mt-1">
-                          Pay cash upon verified courier delivery at your doorstep.
+                          Cash on delivery in selected Jaipur areas
                         </p>
+
+                        {/* PIN Code Verification State & Hints */}
+                        {!formData.pincode || !/^[1-9][0-9]{5}$/.test(formData.pincode) ? (
+                          <p className="text-amber-400 font-mono text-[11px] mt-2 flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            Enter your PIN code to check Cash on Delivery availability
+                          </p>
+                        ) : codAvailability.loading ? (
+                          <p className="text-steel font-mono text-[11px] mt-2 flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-acid shrink-0" />
+                            Verifying Jaipur local delivery for {formData.pincode}...
+                          </p>
+                        ) : codAvailability.available ? (
+                          <div className="mt-2 space-y-1 font-mono text-[11px]">
+                            <p className="text-acid flex items-center gap-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                              Available for personal studio delivery in {codAvailability.areaName || "Jaipur"}.
+                            </p>
+                            {codSettings?.localDeliveryWindow && (
+                              <p className="text-steel text-[10px]">
+                                Window: {codSettings.localDeliveryWindow}
+                              </p>
+                            )}
+                            {codSettings?.confirmationNote && (
+                              <p className="text-steel/70 text-[10px]">
+                                {codSettings.confirmationNote}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-blood font-mono text-[11px] mt-2 flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            Sorry, Cash on Delivery is not available at your address. Please pay online.
+                          </p>
+                        )}
                       </div>
                     </label>
                   )}
@@ -870,16 +1112,27 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between">
-                    <span>Shipping (Pan-India)</span>
+                  <div className="flex justify-between items-center">
+                    <span>Shipping</span>
                     <span>
-                      {isFreeShipping ? (
+                      {isPromoActive ? (
+                        <span className="text-acid font-bold">
+                          FREE <span className="text-[10px] font-mono font-normal">(limited-time offer)</span>
+                        </span>
+                      ) : isThresholdFreeShipping ? (
                         <span className="text-acid font-bold">FREE</span>
                       ) : (
                         formatINR(shippingFee)
                       )}
                     </span>
                   </div>
+
+                  {isCodSelected && codFeePaise > 0 && (
+                    <div className="flex justify-between text-steel">
+                      <span>Pay on Delivery Fee</span>
+                      <span className="text-bone">+{formatINR(codFeePaise)}</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between text-lg font-bold text-bone pt-3 border-t border-steel/10">
                     <span className="font-display uppercase tracking-wide">
@@ -912,26 +1165,34 @@ export default function CheckoutPage() {
                 )}
 
                 {/* Pay Button with double-click protection */}
-                <ClawButton
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  disabled={submitting}
-                  className="w-full h-14 text-base cursor-pointer"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      {processingText || "Securing Order..."}
-                    </>
-                  ) : pendingOrder && formData.paymentMethod !== "cod" ? (
-                    `Retry Payment (${formatINR(finalTotal)})`
-                  ) : formData.paymentMethod === "cod" ? (
-                    `Confirm COD Order (${formatINR(finalTotal)})`
-                  ) : (
-                    `Pay ${formatINR(finalTotal)} with Razorpay`
+                <div>
+                  <ClawButton
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={submitting || (formData.paymentMethod === "cod" && isCodDisabled)}
+                    className="w-full h-14 text-base cursor-pointer"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        {processingText || "Securing Order..."}
+                      </>
+                    ) : pendingOrder && formData.paymentMethod !== "cod" ? (
+                      `Retry Payment (${formatINR(finalTotal)})`
+                    ) : formData.paymentMethod === "cod" ? (
+                      "PLACE ORDER (PAY ON DELIVERY)"
+                    ) : (
+                      `Pay ${formatINR(finalTotal)} with Razorpay`
+                    )}
+                  </ClawButton>
+
+                  {formData.paymentMethod === "cod" && !isCodDisabled && (
+                    <p className="text-center font-mono text-xs text-acid font-medium mt-2">
+                      Pay Rs {Math.round(finalTotal / 100)} in cash when your order arrives
+                    </p>
                   )}
-                </ClawButton>
+                </div>
 
                 <div className="p-3 rounded-sm border border-steel/10 bg-void/50 text-[10px] font-mono text-steel/60 text-center leading-relaxed">
                   <ShieldCheck className="w-3.5 h-3.5 text-acid inline mr-1" />

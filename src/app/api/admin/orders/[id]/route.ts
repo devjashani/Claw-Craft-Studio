@@ -33,6 +33,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const updated = await updateAdminOrder({
       id: params.id,
       status: body.status,
+      payment_status: body.payment_status,
+      cod_amount_collected_paise: body.cod_amount_collected_paise,
+      cod_collected_at: body.cod_collected_at,
       courier_name: body.courier_name,
       tracking_number: body.tracking_number,
       tracking_url: body.tracking_url,

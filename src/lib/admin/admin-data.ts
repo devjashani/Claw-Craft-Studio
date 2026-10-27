@@ -47,6 +47,20 @@ export interface SiteSettingsMap {
   gstin?: string;
   watermark_text?: string;
   support_hours?: string;
+
+  // Reversible Free Shipping Promotion Settings
+  free_shipping_promo_enabled: boolean;
+  free_shipping_promo_ends_at: string | null;
+  free_shipping_promo_scope: "all" | "local";
+
+  // COD & Local Delivery Zone Settings
+  cod_enabled: boolean;
+  cod_max_order_value_inr: number;
+  cod_fee_inr: number;
+  cod_max_open_orders_per_phone: number;
+  cod_blocked_phones: string[];
+  cod_confirmation_note: string;
+  local_delivery_window_text: string;
 }
 
 // In-memory fallback state to preserve changes across admin actions when Supabase is in mock mode
@@ -147,6 +161,17 @@ function getMockStore(): AdminMockStore {
         gstin: "",
         watermark_text: "CLAWCRAFT STUDIO",
         support_hours: "",
+        free_shipping_promo_enabled: false,
+        free_shipping_promo_ends_at: null,
+        free_shipping_promo_scope: "local",
+        cod_enabled: false,
+        cod_max_order_value_inr: 5000,
+        cod_fee_inr: 0,
+        cod_max_open_orders_per_phone: 2,
+        cod_blocked_phones: [],
+        cod_confirmation_note:
+          "Our studio artisan will call you to confirm your order details and delivery window before dispatch.",
+        local_delivery_window_text: "",
       },
     };
   }
@@ -430,6 +455,9 @@ export async function getAdminOrderById(
 export async function updateAdminOrder({
   id,
   status,
+  payment_status,
+  cod_amount_collected_paise,
+  cod_collected_at,
   courier_name,
   tracking_number,
   tracking_url,
@@ -439,6 +467,9 @@ export async function updateAdminOrder({
 }: {
   id: string;
   status?: OrderStatus;
+  payment_status?: string | null;
+  cod_amount_collected_paise?: number | null;
+  cod_collected_at?: string | null;
   courier_name?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
@@ -451,15 +482,36 @@ export async function updateAdminOrder({
   };
 
   if (status !== undefined) updates.status = status;
+  if (payment_status !== undefined) updates.payment_status = payment_status;
+  if (cod_amount_collected_paise !== undefined) updates.cod_amount_collected_paise = cod_amount_collected_paise;
+  if (cod_collected_at !== undefined) updates.cod_collected_at = cod_collected_at;
   if (courier_name !== undefined) updates.courier_name = courier_name;
   if (tracking_number !== undefined) updates.tracking_number = tracking_number;
   if (tracking_url !== undefined) updates.tracking_url = tracking_url;
   if (estimated_delivery_date !== undefined) updates.estimated_delivery_date = estimated_delivery_date;
   if (admin_notes !== undefined) updates.admin_notes = admin_notes;
 
+  // If order is being cancelled, idempotently restore inventory stock once
+  if (status === "cancelled") {
+    try {
+      const { restoreStockOnCancelledOrder } = await import("@/lib/orders/order-service");
+      await restoreStockOnCancelledOrder(id);
+    } catch (stockErr) {
+      console.warn("[updateAdminOrder] restore stock warning:", stockErr);
+    }
+  }
+
   try {
     const supabase = createAdminClient();
-    await supabase.from("orders").update(updates as any).eq("id", id);
+    const { data: updatedDb } = await supabase
+      .from("orders")
+      .update(updates as any)
+      .eq("id", id)
+      .select()
+      .single();
+    if (updatedDb) {
+      return updatedDb as unknown as Order;
+    }
   } catch {
     // ignore
   }

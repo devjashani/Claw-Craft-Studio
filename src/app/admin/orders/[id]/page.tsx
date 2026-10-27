@@ -52,6 +52,11 @@ export default function AdminOrderDetailPage() {
   const [savingFulfillment, setSavingFulfillment] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // COD specific collection states
+  const [showCodCollectionModal, setShowCodCollectionModal] = useState(false);
+  const [collectedAmountRupees, setCollectedAmountRupees] = useState("");
+  const [collectedDate, setCollectedDate] = useState("");
+
   useEffect(() => {
     const fetchOrder = async () => {
       try {
@@ -66,6 +71,8 @@ export default function AdminOrderDetailPage() {
           setTrackingUrl(data.order.tracking_url || "");
           setEstimatedDelivery(data.order.estimated_delivery_date || "");
           setAdminNotes(data.order.admin_notes || "");
+          setCollectedAmountRupees(String(Math.round((data.order.total_paise || 0) / 100)));
+          setCollectedDate(new Date().toISOString().slice(0, 10));
         }
       } catch (err) {
         console.error("Error loading order", err);
@@ -94,6 +101,72 @@ export default function AdminOrderDetailPage() {
       }
     } catch {
       showToast("Failed to update status", "error");
+    }
+  };
+
+  const handleCodRefused = async () => {
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "cancelled",
+          admin_notes: `${adminNotes ? `${adminNotes}\n` : ""}[COD] Customer not reachable / refused at delivery. Stock restored.`,
+        }),
+      });
+      if (res.ok) {
+        showToast("Order marked as Refused & stock restored once", "success");
+        if (order) setOrder({ ...order, status: "cancelled" });
+        setStatus("cancelled");
+        refreshAdminCounts();
+      }
+    } catch {
+      showToast("Failed to cancel order", "error");
+    }
+  };
+
+  const handleConfirmCodCollection = async () => {
+    const amountVal = parseFloat(collectedAmountRupees);
+    if (isNaN(amountVal) || amountVal < 0) {
+      showToast("Please enter a valid amount collected", "error");
+      return;
+    }
+
+    try {
+      const collectedDateIso = collectedDate
+        ? new Date(`${collectedDate}T12:00:00+05:30`).toISOString()
+        : new Date().toISOString();
+
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "delivered",
+          payment_status: "cod_collected",
+          cod_amount_collected_paise: Math.round(amountVal * 100),
+          cod_collected_at: collectedDateIso,
+        }),
+      });
+
+      if (res.ok) {
+        showToast("Marked delivered and cash payment recorded!", "success");
+        if (order) {
+          setOrder({
+            ...order,
+            status: "delivered",
+            payment_status: "cod_collected",
+            cod_amount_collected_paise: Math.round(amountVal * 100),
+            cod_collected_at: collectedDateIso,
+          });
+        }
+        setStatus("delivered");
+        setShowCodCollectionModal(false);
+        refreshAdminCounts();
+      } else {
+        showToast("Failed to record cash collection", "error");
+      }
+    } catch {
+      showToast("Failed to record cash collection", "error");
     }
   };
 
@@ -205,6 +278,11 @@ export default function AdminOrderDetailPage() {
               <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-acid/10 border border-acid text-acid rounded">
                 {order.status.replace("_", " ")}
               </span>
+              {order.delivery_mode === "local" && (
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-acid/15 border border-acid text-acid rounded font-bold">
+                  Local delivery (you deliver)
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted font-mono mt-1">
               Placed on {new Date(order.created_at).toLocaleString("en-IN")}
@@ -247,129 +325,262 @@ export default function AdminOrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column (2 Cols): Items & Fulfillment Controls */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Status Quick Changer */}
+          {/* Status Quick Changer / COD Actions */}
           <div className="relative bg-ash border border-subtle p-5 rounded space-y-3">
             <FiligreeCorner position="top-right" size={12} />
-            <h2 className="font-heading text-sm uppercase text-bone">
-              Order Fulfillment Stage
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                "pending_payment",
-                "paid",
-                "processing",
-                "shipped",
-                "delivered",
-                "cancelled",
-              ].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => handleUpdateStatus(st as OrderStatus)}
-                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors border ${
-                    status === st
-                      ? "bg-acid text-void font-bold border-acid"
-                      : "bg-void border-subtle text-muted hover:text-bone"
-                  }`}
-                >
-                  {st.replace("_", " ")}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Courier Assignment & Shipping Dispatch Form */}
-          <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
-            <FiligreeCorner position="top-right" size={14} />
-            <div className="flex items-center justify-between border-b border-subtle pb-3">
-              <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
-                <Truck className="w-4 h-4 text-acid" />
-                <span>Courier Assignment & Tracking</span>
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-sm uppercase text-bone">
+                {order.payment_method === "cod" ? "COD Order Actions" : "Order Fulfillment Stage"}
               </h2>
-              {order.tracking_number && (
-                <span className="text-[11px] font-mono text-acid bg-acid/10 px-2 py-0.5 rounded border border-acid/30">
-                  AWB Active
+              {order.payment_method === "cod" && (
+                <span className="text-[10px] font-mono uppercase text-amber-400 font-bold">
+                  Cash On Delivery ({(order.payment_status || "cod_pending").replace("_", " ")})
                 </span>
               )}
             </div>
 
-            <form onSubmit={handleSaveFulfillment} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono uppercase text-muted mb-1">
-                    Courier Partner Name
-                  </label>
-                  <input
-                    type="text"
-                    value={courierName}
-                    onChange={(e) => setCourierName(e.target.value)}
-                    placeholder="e.g. Bluedart / Delhivery / DTDC / Shiprocket"
-                    className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
-                  />
-                </div>
+            {order.payment_method === "cod" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* 1. Confirm (called customer) */}
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus("confirmed")}
+                    className={`px-3 py-1.5 text-xs font-mono uppercase font-bold rounded border transition-colors ${
+                      status === "confirmed"
+                        ? "bg-acid text-void border-acid"
+                        : "bg-void border-subtle text-bone hover:border-acid"
+                    }`}
+                  >
+                    Confirm (called customer)
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-mono uppercase text-muted mb-1">
-                    Tracking / AWB Number
-                  </label>
-                  <input
-                    type="text"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    placeholder="e.g. BD12345678IN"
-                    className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
-                  />
-                </div>
+                  {/* 2. Out for delivery */}
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus("out_for_delivery" as OrderStatus)}
+                    className={`px-3 py-1.5 text-xs font-mono uppercase font-bold rounded border transition-colors ${
+                      status === "out_for_delivery" || status === "shipped"
+                        ? "bg-acid text-void border-acid"
+                        : "bg-void border-subtle text-bone hover:border-acid"
+                    }`}
+                  >
+                    Out for delivery
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-mono uppercase text-muted mb-1">
-                    Tracking Direct URL
-                  </label>
-                  <input
-                    type="url"
-                    value={trackingUrl}
-                    onChange={(e) => setTrackingUrl(e.target.value)}
-                    placeholder="https://track.bluedart.com/..."
-                    className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
-                  />
-                </div>
+                  {/* 3. Delivered and cash collected */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCollectedAmountRupees(String(Math.round((order.total_paise || 0) / 100)));
+                      setCollectedDate(new Date().toISOString().slice(0, 10));
+                      setShowCodCollectionModal(true);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-mono uppercase font-bold rounded border transition-colors ${
+                      order.payment_status === "cod_collected"
+                        ? "bg-emerald-500 text-void border-emerald-500"
+                        : "bg-emerald-950/40 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-void"
+                    }`}
+                  >
+                    {order.payment_status === "cod_collected"
+                      ? "Cash Collected ✓"
+                      : "Delivered and cash collected"}
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-mono uppercase text-muted mb-1">
-                    Estimated Delivery Date
-                  </label>
-                  <input
-                    type="date"
-                    value={estimatedDelivery}
-                    onChange={(e) => setEstimatedDelivery(e.target.value)}
-                    className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
-                  />
+                  {/* 4. Customer not reachable / refused */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Mark order as 'Customer not reachable / refused'? This will cancel the order and safely restore stock."
+                        )
+                      ) {
+                        handleCodRefused();
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-mono uppercase font-bold rounded border border-blood/50 text-blood bg-blood/10 hover:bg-blood hover:text-void transition-colors"
+                  >
+                    Customer not reachable / refused
+                  </button>
+
+                  {/* 5. Cancel */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Cancel this COD order? Stock will be restored.")) {
+                        handleUpdateStatus("cancelled");
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-mono uppercase rounded border border-subtle text-muted hover:border-blood hover:text-blood transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-mono text-muted">
-                  <input
-                    type="checkbox"
-                    checked={notifyCustomer}
-                    onChange={(e) => setNotifyCustomer(e.target.checked)}
-                    className="accent-acid w-4 h-4 rounded"
-                  />
-                  <span>Dispatch automated tracking email to {order.customer_email}</span>
-                </label>
-
-                <ClawButton
-                  type="submit"
-                  disabled={savingFulfillment}
-                  variant="acid"
-                  className="text-xs py-2 px-4 self-start sm:self-auto"
-                >
-                  <Save className="w-3.5 h-3.5 mr-1.5 inline" />
-                  {savingFulfillment ? "SAVING..." : "SAVE & DISPATCH AWB"}
-                </ClawButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  "pending_payment",
+                  "paid",
+                  "processing",
+                  "shipped",
+                  "delivered",
+                  "cancelled",
+                ].map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => handleUpdateStatus(st as OrderStatus)}
+                    className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors border ${
+                      status === st
+                        ? "bg-acid text-void font-bold border-acid"
+                        : "bg-void border-subtle text-muted hover:text-bone"
+                    }`}
+                  >
+                    {st.replace("_", " ")}
+                  </button>
+                ))}
               </div>
-            </form>
+            )}
           </div>
+
+          {/* Fulfillment Section: Hide courier fields for local Jaipur orders */}
+          {order.delivery_mode === "local" ? (
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
+              <FiligreeCorner position="top-right" size={14} />
+              <div className="flex items-center justify-between border-b border-subtle pb-3">
+                <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-acid" />
+                  <span>Local Delivery (You Deliver)</span>
+                </h2>
+                <span className="text-[11px] font-mono text-acid bg-acid/10 px-2 py-0.5 rounded border border-acid/30 font-bold">
+                  Jaipur Local Direct
+                </span>
+              </div>
+
+              <div className="p-4 bg-void border border-subtle/80 rounded font-mono text-xs space-y-2">
+                <p className="text-bone">
+                  This order is scheduled for personal owner delivery in Jaipur. Courier assignment and AWB tracking numbers are disabled for local orders.
+                </p>
+                <p className="text-steel text-[11px]">
+                  Deliver to: {order.shipping_address_line1}
+                  {order.shipping_address_line2 ? `, ${order.shipping_address_line2}` : ""},{" "}
+                  {order.shipping_city} - {order.shipping_pincode}
+                </p>
+
+                {order.payment_method === "cod" && (
+                  <div className="pt-2 border-t border-subtle/50 flex flex-wrap justify-between items-center text-xs">
+                    <span className="text-muted">Payment Due:</span>
+                    {order.payment_status === "cod_collected" ? (
+                      <span className="text-acid font-bold">
+                        Collected {formatINR(order.cod_amount_collected_paise || order.total_paise)}
+                        {order.cod_collected_at &&
+                          ` on ${new Date(order.cod_collected_at).toLocaleDateString("en-IN")}`}
+                      </span>
+                    ) : (
+                      <span className="text-amber-400 font-bold">
+                        Cash Due on Delivery: {formatINR(order.total_paise)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Courier Assignment & Shipping Dispatch Form (Only for non-local orders) */
+            <div className="relative bg-ash border border-subtle p-6 rounded space-y-4">
+              <FiligreeCorner position="top-right" size={14} />
+              <div className="flex items-center justify-between border-b border-subtle pb-3">
+                <h2 className="font-heading text-base uppercase text-bone flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-acid" />
+                  <span>Courier Assignment & Tracking</span>
+                </h2>
+                {order.tracking_number && (
+                  <span className="text-[11px] font-mono text-acid bg-acid/10 px-2 py-0.5 rounded border border-acid/30">
+                    AWB Active
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveFulfillment} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-muted mb-1">
+                      Courier Partner Name
+                    </label>
+                    <input
+                      type="text"
+                      value={courierName}
+                      onChange={(e) => setCourierName(e.target.value)}
+                      placeholder="e.g. Bluedart / Delhivery / DTDC / Shiprocket"
+                      className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone focus:border-acid focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-muted mb-1">
+                      Tracking / AWB Number
+                    </label>
+                    <input
+                      type="text"
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      placeholder="e.g. BD12345678IN"
+                      className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-muted mb-1">
+                      Tracking Direct URL
+                    </label>
+                    <input
+                      type="url"
+                      value={trackingUrl}
+                      onChange={(e) => setTrackingUrl(e.target.value)}
+                      placeholder="https://track.bluedart.com/..."
+                      className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase text-muted mb-1">
+                      Estimated Delivery Date
+                    </label>
+                    <input
+                      type="date"
+                      value={estimatedDelivery}
+                      onChange={(e) => setEstimatedDelivery(e.target.value)}
+                      className="w-full bg-void border border-subtle px-3 py-2 text-xs text-bone font-mono focus:border-acid focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-mono text-muted">
+                    <input
+                      type="checkbox"
+                      checked={notifyCustomer}
+                      onChange={(e) => setNotifyCustomer(e.target.checked)}
+                      className="accent-acid w-4 h-4 rounded"
+                    />
+                    <span>Dispatch automated tracking email to {order.customer_email}</span>
+                  </label>
+
+                  <ClawButton
+                    type="submit"
+                    disabled={savingFulfillment}
+                    variant="acid"
+                    className="text-xs py-2 px-4 self-start sm:self-auto"
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1.5 inline" />
+                    {savingFulfillment ? "SAVING..." : "SAVE & DISPATCH AWB"}
+                  </ClawButton>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Purchased Relics Table */}
           <div className="bg-ash border border-subtle rounded overflow-hidden">
@@ -563,6 +774,74 @@ export default function AdminOrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* COD Cash Collection Modal */}
+      {showCodCollectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="relative w-full max-w-md bg-ash border-2 border-acid p-6 rounded shadow-2xl space-y-5 font-mono text-xs">
+            <FiligreeCorner position="top-left" size={16} variant="acid" />
+            <FiligreeCorner position="bottom-right" size={16} variant="acid" />
+
+            <div>
+              <h3 className="font-heading text-lg text-bone uppercase">
+                Delivered & Collect Cash
+              </h3>
+              <p className="text-muted text-[11px] mt-1">
+                Confirm handover of piece to customer and record the cash amount collected.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block uppercase text-muted mb-1 text-[11px]">
+                  Cash Amount Collected (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={collectedAmountRupees}
+                  onChange={(e) => setCollectedAmountRupees(e.target.value)}
+                  className="w-full bg-void border border-subtle px-3 py-2 text-bone font-bold text-sm focus:border-acid focus:outline-none"
+                />
+                <span className="text-[10px] text-muted mt-1 block">
+                  Order Total is {formatINR(order.total_paise)}
+                </span>
+              </div>
+
+              <div>
+                <label className="block uppercase text-muted mb-1 text-[11px]">
+                  Collection Date *
+                </label>
+                <input
+                  type="date"
+                  value={collectedDate}
+                  onChange={(e) => setCollectedDate(e.target.value)}
+                  className="w-full bg-void border border-subtle px-3 py-2 text-bone text-xs focus:border-acid focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-subtle">
+              <button
+                type="button"
+                onClick={() => setShowCodCollectionModal(false)}
+                className="px-4 py-2 bg-void border border-subtle text-muted hover:text-bone uppercase text-xs rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <ClawButton
+                type="button"
+                variant="acid"
+                size="sm"
+                onClick={handleConfirmCodCollection}
+              >
+                Confirm & Mark Collected
+              </ClawButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

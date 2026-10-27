@@ -37,6 +37,8 @@ export interface CreateOrderInput {
   razorpayPaymentId?: string | null;
   paymentMeta?: Record<string, unknown>;
   userId?: string | null;
+  deliveryMode?: "local" | "courier";
+  codFeePaise?: number;
 }
 
 export interface OrderLookupResult {
@@ -291,8 +293,18 @@ export async function createOrder(input: CreateOrderInput): Promise<{
     const supabase = createAdminClient();
     const publicToken = generatePublicToken();
     const isCod = input.paymentMethod === "cod";
-    const initialStatus = input.isPaid ? "paid" : isCod ? "processing" : "pending_payment";
-    const initialPaymentStatus = input.isPaid ? "paid" : "pending_payment";
+    const initialStatus = input.isPaid
+      ? "paid"
+      : isCod
+      ? "awaiting_confirmation"
+      : "pending_payment";
+    const initialPaymentStatus = input.isPaid
+      ? "paid"
+      : isCod
+      ? "cod_pending"
+      : "pending_payment";
+    const deliveryMode = input.deliveryMode || (isCod ? "local" : "courier");
+    const codFeePaise = input.codFeePaise || 0;
     const nowIso = new Date().toISOString();
 
     const orderPayload: any = {
@@ -318,6 +330,10 @@ export async function createOrder(input: CreateOrderInput): Promise<{
       payment_meta: input.paymentMeta || {},
       paid_at: input.isPaid ? nowIso : null,
       user_id: input.userId || null,
+      delivery_mode: deliveryMode,
+      cod_fee_paise: codFeePaise,
+      stock_deducted: isCod || input.isPaid ? true : false,
+      stock_restored: false,
     };
 
     const { data: dbOrder, error: orderError } = await supabase
@@ -358,6 +374,35 @@ export async function createOrder(input: CreateOrderInput): Promise<{
 
     if (itemsError) {
       console.error("[Supabase insert order_items Error]", itemsError);
+    }
+
+    // If COD, deduct inventory stock immediately upon placement (reason: order_cod)
+    if (isCod) {
+      try {
+        await (supabase.rpc as any)("decrement_stock_on_paid_order", {
+          target_order_id: createdOrder.id,
+        });
+      } catch (stockErr) {
+        console.warn("[COD stock deduction fallback]", stockErr);
+        // Manual fallback update if RPC unavailable
+        for (const it of input.items) {
+          try {
+            const { data: prod } = await supabase
+              .from("products")
+              .select("stock_count, is_made_to_order")
+              .eq("id", it.productId)
+              .single();
+            if (prod && !prod.is_made_to_order && typeof prod.stock_count === "number") {
+              await supabase
+                .from("products")
+                .update({ stock_count: Math.max(0, prod.stock_count - it.quantity) } as any)
+                .eq("id", it.productId);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
     }
 
     return {
@@ -480,4 +525,78 @@ export function verifyOrderAccess(
   }
 
   return { allowed: false, reason: "Invalid token or phone number does not match order record." };
+}
+
+/**
+ * Idempotently restores product inventory stock when an order is cancelled
+ * or when a customer refuses / is unreachable on a Cash on Delivery order.
+ * Guarantees stock is never restored more than once.
+ */
+export async function restoreStockOnCancelledOrder(orderId: string): Promise<boolean> {
+  if (!orderId) return false;
+
+  try {
+    const supabase = createAdminClient();
+
+    // Check if stock was actually deducted and not yet restored
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, stock_deducted, stock_restored")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!order) return false;
+
+    // Only restore if stock was deducted and has not yet been restored
+    if (order.stock_deducted !== true || order.stock_restored === true) {
+      return false;
+    }
+
+    // Try calling the database RPC
+    try {
+      await (supabase.rpc as any)("restore_stock_on_cancelled_order", {
+        target_order_id: orderId,
+      });
+      return true;
+    } catch (rpcErr) {
+      console.warn("[restore_stock_on_cancelled_order RPC fallback]", rpcErr);
+
+      // Manual fallback restoration in Node
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      if (items && items.length > 0) {
+        for (const item of items) {
+          try {
+            const { data: prod } = await supabase
+              .from("products")
+              .select("stock_count, is_made_to_order")
+              .eq("id", item.product_id)
+              .single();
+
+            if (prod && !prod.is_made_to_order && typeof prod.stock_count === "number") {
+              await supabase
+                .from("products")
+                .update({ stock_count: prod.stock_count + item.quantity } as any)
+                .eq("id", item.product_id);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      await supabase
+        .from("orders")
+        .update({ stock_restored: true } as any)
+        .eq("id", orderId);
+
+      return true;
+    }
+  } catch (err) {
+    console.error("[restoreStockOnCancelledOrder Exception]", err);
+    return false;
+  }
 }

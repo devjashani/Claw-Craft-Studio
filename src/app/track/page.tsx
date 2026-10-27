@@ -66,21 +66,37 @@ export default function TrackOrderPage() {
     }
   };
 
-  const steps = [
-    { label: "Order received", status: "paid" },
-    { label: "Preparing", status: "processing" },
-    { label: "Shipped", status: "shipped" },
-    { label: "Delivered", status: "delivered" },
-  ];
+  const isLocal = result?.order.delivery_mode === "local";
 
-  const currentStepIndex =
-    result?.order.status === "delivered"
+  const steps = isLocal
+    ? [
+        { label: "Order received", status: "awaiting_confirmation" },
+        { label: "Confirmed", status: "confirmed" },
+        { label: "Out for delivery", status: "out_for_delivery" },
+        { label: "Delivered", status: "delivered" },
+      ]
+    : [
+        { label: "Order received", status: "paid" },
+        { label: "Preparing", status: "processing" },
+        { label: "Shipped", status: "shipped" },
+        { label: "Delivered", status: "delivered" },
+      ];
+
+  const currentStepIndex = isLocal
+    ? result?.order.status === "delivered"
       ? 3
-      : result?.order.status === "shipped"
+      : result?.order.status === "out_for_delivery" || result?.order.status === "shipped"
       ? 2
-      : result?.order.status === "processing"
+      : result?.order.status === "confirmed" || result?.order.status === "processing"
       ? 1
-      : 0;
+      : 0
+    : result?.order.status === "delivered"
+    ? 3
+    : result?.order.status === "shipped"
+    ? 2
+    : result?.order.status === "processing"
+    ? 1
+    : 0;
 
   return (
     <div className="min-h-screen bg-void py-12 px-4 sm:px-6 lg:px-8">
@@ -225,8 +241,32 @@ export default function TrackOrderPage() {
                 })}
               </div>
 
-              {/* Courier Tracking Link */}
-              {result.order.tracking_number ? (
+              {/* Courier Tracking Link or Local Delivery Notice */}
+              {isLocal ? (
+                <div className="mt-6 p-4 rounded-sm bg-void border border-steel/20 text-xs font-mono">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-acid uppercase tracking-wider font-bold flex items-center gap-2">
+                        <Truck className="w-4 h-4 text-acid" /> Local delivery (Personal delivery in Jaipur)
+                      </span>
+                      <p className="text-steel/80 mt-1">
+                        Our studio artisan will deliver directly to your address. No courier tracking needed.
+                      </p>
+                    </div>
+                    {result.order.payment_method === "cod" && (
+                      <div className="text-left sm:text-right font-mono">
+                        {result.order.payment_status === "cod_collected" ? (
+                          <span className="text-acid font-bold">PAID (CASH)</span>
+                        ) : (
+                          <span className="text-amber-400 font-bold">
+                            PAYMENT DUE ON DELIVERY: {formatINR(result.order.total_paise)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : result.order.tracking_number ? (
                 <div className="mt-6 p-4 rounded-sm bg-void border border-acid/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono text-xs">
                   <div>
                     <span className="text-steel">Courier Partner: </span>

@@ -9,7 +9,10 @@ export type Json =
 export type OrderStatus =
   | "pending_payment"
   | "paid"
+  | "awaiting_confirmation"
+  | "confirmed"
   | "processing"
+  | "out_for_delivery"
   | "shipped"
   | "delivered"
   | "cancelled"
@@ -269,6 +272,12 @@ export interface Database {
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
           email_sent_at?: string | null;
+          delivery_mode?: "courier" | "local";
+          cod_fee_paise?: number;
+          cod_amount_collected_paise?: number | null;
+          cod_collected_at?: string | null;
+          stock_deducted?: boolean;
+          stock_restored?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -305,6 +314,12 @@ export interface Database {
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
           email_sent_at?: string | null;
+          delivery_mode?: "courier" | "local";
+          cod_fee_paise?: number;
+          cod_amount_collected_paise?: number | null;
+          cod_collected_at?: string | null;
+          stock_deducted?: boolean;
+          stock_restored?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -341,6 +356,12 @@ export interface Database {
           payment_meta?: Record<string, unknown> | null;
           paid_at?: string | null;
           email_sent_at?: string | null;
+          delivery_mode?: "courier" | "local";
+          cod_fee_paise?: number;
+          cod_amount_collected_paise?: number | null;
+          cod_collected_at?: string | null;
+          stock_deducted?: boolean;
+          stock_restored?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -616,12 +637,37 @@ export interface Database {
         };
         Relationships: [];
       };
+      cod_pincodes: {
+        Row: {
+          pincode: string;
+          area_name: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          pincode: string;
+          area_name: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          pincode?: string;
+          area_name?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
       decrement_stock_on_paid_order: {
+        Args: { target_order_id: string };
+        Returns: void;
+      };
+      restore_stock_on_cancelled_order: {
         Args: { target_order_id: string };
         Returns: void;
       };
