@@ -231,10 +231,53 @@ export function CartDrawer() {
                 items.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3.5 border border-steel/20 bg-void/50 rounded-sm flex gap-3.5 items-center relative group"
+                    className="p-3.5 border border-steel/20 border-b-emerald-500/25 bg-void/80 rounded-sm flex gap-3.5 items-center relative overflow-hidden group shadow-[0_2px_10px_-2px_rgba(22,163,74,0.08)] transition-all hover:border-steel/40 hover:border-b-emerald-500/40 hover:shadow-[0_4px_16px_-2px_rgba(22,163,74,0.15)]"
                   >
+                    {/* Vibrant Green Fire & Rising Ember Effect (Z-index below content) */}
+                    <div className="cart-item-green-fire" aria-hidden="true">
+                      <div className="cart-fire-glow-base" />
+                      <div className="cart-fire-glow-wisp" />
+                      <div className="cart-fire-flame-tongues" />
+                      <div className="cart-fire-rim" />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "12%",
+                          animation: "green-ember-float-1 3.5s ease-out infinite 0.2s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "32%",
+                          animation: "green-ember-float-2 4.2s ease-out infinite 1.1s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "50%",
+                          animation: "green-ember-float-3 3.9s ease-out infinite 2.3s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "68%",
+                          animation: "green-ember-float-1 4.4s ease-out infinite 0.8s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "86%",
+                          animation: "green-ember-float-2 4.0s ease-out infinite 1.7s",
+                        }}
+                      />
+                    </div>
+
                     {/* Item Thumbnail */}
-                    <div className="relative w-16 h-16 rounded-sm overflow-hidden bg-ash shrink-0 border border-steel/20">
+                    <div className="relative z-10 w-16 h-16 rounded-sm overflow-hidden bg-ash shrink-0 border border-steel/20">
                       <Image
                         src={
                           item.imageUrl && !item.imageUrl.endsWith(".jpg")
@@ -248,7 +291,7 @@ export function CartDrawer() {
                       />
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                    <div className="relative z-10 flex-1 min-w-0">
                       <h3 className="font-display uppercase text-sm text-bone truncate">
                         {item.title}
                       </h3>

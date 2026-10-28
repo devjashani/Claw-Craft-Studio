@@ -7,13 +7,15 @@ import { createClient } from "@/lib/supabase/client";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { useToast } from "@/components/ui/toast";
-import { Lock, AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { Lock, AlertCircle, CheckCircle2, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const toast = useToast();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -113,14 +115,22 @@ export default function ResetPasswordPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9"
+                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9 pr-10 font-mono tracking-wider"
                   />
                   <Lock className="w-4 h-4 text-steel/60 absolute left-3 top-3 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-steel/60 hover:text-bone focus:outline-none focus:text-acid transition-colors p-1"
+                  >
+                    {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -130,14 +140,22 @@ export default function ResetPasswordPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9"
+                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9 pr-10 font-mono tracking-wider"
                   />
                   <Lock className="w-4 h-4 text-steel/60 absolute left-3 top-3 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-steel/60 hover:text-bone focus:outline-none focus:text-acid transition-colors p-1"
+                  >
+                    {showConfirmPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 

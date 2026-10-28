@@ -156,9 +156,52 @@ export default function FullCartPage() {
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden group border-b border-b-emerald-500/25 shadow-[0_2px_12px_-3px_rgba(22,163,74,0.08)] transition-all hover:border-b-emerald-500/40 hover:shadow-[0_4px_16px_-2px_rgba(22,163,74,0.15)]"
                   >
-                    <div className="flex items-center gap-4">
+                    {/* Vibrant Green Fire & Rising Ember Effect (Z-index below content) */}
+                    <div className="cart-item-green-fire" aria-hidden="true">
+                      <div className="cart-fire-glow-base" />
+                      <div className="cart-fire-glow-wisp" />
+                      <div className="cart-fire-flame-tongues" />
+                      <div className="cart-fire-rim" />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "12%",
+                          animation: "green-ember-float-1 3.5s ease-out infinite 0.2s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "32%",
+                          animation: "green-ember-float-2 4.2s ease-out infinite 1.1s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "50%",
+                          animation: "green-ember-float-3 3.9s ease-out infinite 2.3s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "68%",
+                          animation: "green-ember-float-1 4.4s ease-out infinite 0.8s",
+                        }}
+                      />
+                      <div
+                        className="cart-ember-particle"
+                        style={{
+                          left: "86%",
+                          animation: "green-ember-float-2 4.0s ease-out infinite 1.7s",
+                        }}
+                      />
+                    </div>
+
+                    <div className="relative z-10 flex items-center gap-4">
                       <div className="relative w-20 h-20 rounded-sm overflow-hidden bg-void border border-steel/20 shrink-0">
                         <Image
                           src={
@@ -196,7 +239,7 @@ export default function FullCartPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between w-full sm:w-auto gap-6">
+                    <div className="relative z-10 flex items-center justify-between w-full sm:w-auto gap-6">
                       {/* Quantity Selector */}
                       <div className="flex items-center border border-steel/30 bg-void rounded-sm">
                         <button

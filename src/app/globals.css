@@ -236,3 +236,213 @@ body {
     background: #B8FF1F !important;
   }
 }
+
+/* ==============================================================================
+   CART ITEM SUBTLE & DARK "GREEN FIRE" & RISING EMBER EFFECT (ATMOSPHERIC)
+   ============================================================================== */
+@keyframes green-fire-dance {
+  0% {
+    transform: translateY(0px) scaleY(1) scaleX(1) skewX(0deg);
+    opacity: 0.55;
+  }
+  25% {
+    transform: translateY(-4px) scaleY(1.1) scaleX(1.02) skewX(-1.5deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-2px) scaleY(1.05) scaleX(0.98) skewX(1deg);
+    opacity: 0.6;
+  }
+  75% {
+    transform: translateY(-5px) scaleY(1.12) scaleX(1.01) skewX(-1deg);
+    opacity: 0.68;
+  }
+  100% {
+    transform: translateY(0px) scaleY(1) scaleX(1) skewX(0deg);
+    opacity: 0.55;
+  }
+}
+
+@keyframes green-fire-tongue {
+  0% {
+    transform: translateY(0) scale(0.97) skewX(1deg);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-7px) scale(1.12) skewX(-1.5deg);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateY(0) scale(0.97) skewX(1deg);
+    opacity: 0.45;
+  }
+}
+
+@keyframes green-fire-flicker-rim {
+  0%, 100% {
+    opacity: 0.45;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.25);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.45), 0 -1px 4px rgba(22, 163, 74, 0.3);
+  }
+}
+
+@keyframes green-ember-float-1 {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.7);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.65;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-42px) translateX(6px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes green-ember-float-2 {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.6;
+  }
+  65% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(-48px) translateX(-8px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes green-ember-float-3 {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.75);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  60% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(-38px) translateX(5px) scale(1);
+    opacity: 0;
+  }
+}
+
+.cart-item-green-fire {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Subtle, dark bottom fire rim */
+.cart-fire-rim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(22, 163, 74, 0.2) 15%,
+    rgba(34, 197, 94, 0.55) 50%,
+    rgba(22, 163, 74, 0.2) 85%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+  animation: green-fire-flicker-rim 3.2s ease-in-out infinite;
+}
+
+/* Subtle rising dark fire glow */
+.cart-fire-glow-base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  background: linear-gradient(
+    to top,
+    rgba(22, 163, 74, 0.20) 0%,
+    rgba(21, 128, 61, 0.10) 40%,
+    rgba(20, 83, 45, 0.03) 75%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  animation: green-fire-dance 4.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Deep core flame tongue */
+.cart-fire-glow-wisp {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: -3px;
+  height: 85%;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(34, 197, 94, 0.24) 0%,
+    rgba(22, 163, 74, 0.12) 35%,
+    rgba(20, 83, 45, 0.04) 65%,
+    transparent 85%
+  );
+  filter: blur(8px);
+  animation: green-fire-tongue 3.6s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Subtle auxiliary flame tongues */
+.cart-fire-flame-tongues {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 65%;
+  background: radial-gradient(ellipse at 25% 100%, rgba(21, 128, 61, 0.14) 0%, transparent 50%),
+              radial-gradient(ellipse at 75% 100%, rgba(21, 128, 61, 0.14) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 100%, rgba(34, 197, 94, 0.18) 0%, transparent 45%);
+  filter: blur(7px);
+  animation: green-fire-dance 5s ease-in-out infinite reverse;
+  transform-origin: bottom center;
+}
+
+/* Dark, subtle floating embers */
+.cart-ember-particle {
+  position: absolute;
+  bottom: 2px;
+  width: 2px;
+  height: 2px;
+  border-radius: 9999px;
+  background-color: rgba(74, 222, 128, 0.8);
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.5), 0 0 8px rgba(22, 163, 74, 0.25);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-fire-glow-base,
+  .cart-fire-glow-wisp,
+  .cart-fire-flame-tongues,
+  .cart-fire-rim,
+  .cart-ember-particle {
+    animation: none !important;
+    opacity: 0.18 !important;
+  }
+}
+

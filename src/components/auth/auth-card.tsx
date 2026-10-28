@@ -16,6 +16,8 @@ import {
   Loader2,
   ArrowRight,
   Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { absoluteUrl } from "@/lib/site";
 
@@ -74,6 +76,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const supabase = createClient();
   const isGoogleAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true";
@@ -205,6 +208,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
             onClick={() => {
               setMode("login");
               setErrorMessage(null);
+              setShowPassword(false);
             }}
             className={`flex-1 text-center font-display uppercase tracking-wider text-sm pb-2 border-b-2 transition-all ${
               mode === "login"
@@ -219,6 +223,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
             onClick={() => {
               setMode("signup");
               setErrorMessage(null);
+              setShowPassword(false);
             }}
             className={`flex-1 text-center font-display uppercase tracking-wider text-sm pb-2 border-b-2 transition-all ${
               mode === "signup"
@@ -372,14 +377,26 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
                 </div>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9"
+                    className="w-full bg-void border border-steel/30 rounded-sm px-3.5 py-2.5 text-xs text-bone focus:border-acid focus:outline-none pl-9 pr-10 font-mono tracking-wider"
                   />
                   <Lock className="w-4 h-4 text-steel/60 absolute left-3 top-3 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-steel/60 hover:text-bone focus:outline-none focus:text-acid transition-colors p-1"
+                  >
+                    {showPassword ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
