@@ -73,13 +73,6 @@ export const metadata: Metadata = {
     follow: true,
   },
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png" },
-      { url: "/favicon.ico" },
-    ],
-    apple: "/icon.png",
-  },
 };
 
 export const viewport: Viewport = {
