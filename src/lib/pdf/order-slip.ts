@@ -38,7 +38,7 @@ export function formatISTDate(isoString?: string | null): string {
 }
 
 /**
- * Format Paise into Indian Rupee string (e.g. ₹ 1,299 or Rs 1,299)
+ * Format Paise into Indian Rupee string (e.g. Rs 1,299)
  */
 export function formatSlipRupees(paise: number): string {
   const rupees = paise / 100;
@@ -66,6 +66,22 @@ async function loadFontBytes(filename: string): Promise<Uint8Array> {
   }
 }
 
+// Cyberpunk Dark Theme Color Tokens
+const COLOR_BG = rgb(10 / 255, 10 / 255, 10 / 255);             // Deep Black #0a0a0a
+const COLOR_SURFACE = rgb(18 / 255, 18 / 255, 18 / 255);        // Dark Grey Surface #121212
+const COLOR_SURFACE_ALT = rgb(26 / 255, 26 / 255, 26 / 255);    // Table Header #1a1a1a
+const COLOR_ROW_EVEN = rgb(16 / 255, 16 / 255, 16 / 255);       // Row Even #101010
+const COLOR_ROW_ODD = rgb(10 / 255, 10 / 255, 10 / 255);        // Row Odd #0a0a0a
+const COLOR_BORDER = rgb(38 / 255, 38 / 255, 38 / 255);         // Subtle Border #262626
+const COLOR_NEON = rgb(57 / 255, 255 / 255, 20 / 255);          // Neon Green #39FF14
+const COLOR_NEON_ACID = rgb(184 / 255, 255 / 255, 31 / 255);    // Acid Lime #B8FF1F
+const COLOR_TEXT_PRIMARY = rgb(242 / 255, 242 / 255, 242 / 255); // Off-White #f2f2f2
+const COLOR_TEXT_MUTED = rgb(160 / 255, 160 / 255, 160 / 255);  // Silver / Light Grey #a0a0a0
+const COLOR_TEXT_DIM = rgb(105 / 255, 105 / 255, 105 / 255);    // Dark Muted Grey #696969
+const COLOR_AMBER = rgb(255 / 255, 184 / 255, 0 / 255);         // Amber Warning #FFB800
+const COLOR_RED = rgb(239 / 255, 68 / 255, 68 / 255);           // Red #ef4444
+const COLOR_WHITE = rgb(1, 1, 1);
+
 /**
  * Draw diagonal repeating watermark on a page
  */
@@ -77,7 +93,7 @@ function drawWatermark(
   height: number
 ) {
   const text = watermarkText.toUpperCase();
-  const textWidth = font.widthOfTextAtSize(text, 16);
+  const textWidth = font.widthOfTextAtSize(text, 14);
   const stepX = Math.max(160, textWidth + 40);
   const stepY = 110;
 
@@ -86,10 +102,10 @@ function drawWatermark(
       page.drawText(text, {
         x,
         y,
-        size: 14,
+        size: 13,
         font,
-        color: rgb(0.65, 0.65, 0.65),
-        opacity: 0.08,
+        color: COLOR_NEON,
+        opacity: 0.025,
         rotate: degrees(-35),
       });
     }
@@ -98,6 +114,7 @@ function drawWatermark(
 
 /**
  * Core Universal PDF Builder for Order Receipts / Payment Slips
+ * Redesigned with premium dark cyberpunk aesthetic (Deep Black, Neon Green #39FF14, Silver/Grey)
  */
 export async function buildSlipPdf(
   order: Order,
@@ -128,32 +145,55 @@ export async function buildSlipPdf(
 
   const watermarkText = options?.watermarkText || `${siteConfig.name} STUDIO`;
   const siteUrl = options?.siteUrl || getSiteUrl();
-  const siteHost = getSiteHost();
   const isDemo = Boolean(order.isDemo || options?.isDemo || order.id?.startsWith("demo-"));
-  const isPaid = (order.payment_status === "paid" || order.status === "paid") && !isDemo;
+  const isCod = order.payment_method === "cod";
+  const isCodCollected =
+    isCod && (order.payment_status === "cod_collected" || Boolean((order as any).cod_collected_at));
+  const isOnlinePaid =
+    (order.payment_status === "paid" || order.status === "paid") && !isDemo && !isCod;
+  const isFullyPaid = isOnlinePaid || isCodCollected;
 
   let pageNumber = 1;
   let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
 
-  // Initial Watermark
+  // Deep Black Background
+  currentPage.drawRectangle({
+    x: 0,
+    y: 0,
+    width: pageWidth,
+    height: pageHeight,
+    color: COLOR_BG,
+  });
+
+  // Cyberpunk Subtle Watermark
   drawWatermark(currentPage, fontBold, watermarkText, pageWidth, pageHeight);
 
   let currentY = pageHeight - margin;
 
-  // Helper to add page when space runs out
+  // Helper to add continuation page when space runs out
   const checkPageOverflow = (requiredHeight: number) => {
     if (currentY - requiredHeight < margin + 60) {
       pageNumber++;
       currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+
+      // Deep Black Background on continuation page
+      currentPage.drawRectangle({
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+        color: COLOR_BG,
+      });
+
       drawWatermark(currentPage, fontBold, watermarkText, pageWidth, pageHeight);
 
       // Top running header on continuation pages
-      currentPage.drawText("CLAWCRAFT STUDIO — ORDER RECEIPT (CONTINUED)", {
+      currentPage.drawText("CLAWCRAFT STUDIO — OFFICIAL RECEIPT (CONTINUED)", {
         x: margin,
         y: pageHeight - margin + 10,
         size: 9,
         font: fontBold,
-        color: rgb(0.3, 0.3, 0.3),
+        color: COLOR_NEON,
       });
 
       currentPage.drawText(`Order Reference: ${order.order_number} • Page ${pageNumber}`, {
@@ -161,290 +201,330 @@ export async function buildSlipPdf(
         y: pageHeight - margin + 10,
         size: 8,
         font: fontRegular,
-        color: rgb(0.4, 0.4, 0.4),
+        color: COLOR_TEXT_MUTED,
       });
 
       currentPage.drawLine({
         start: { x: margin, y: pageHeight - margin + 4 },
         end: { x: pageWidth - margin, y: pageHeight - margin + 4 },
-        thickness: 0.5,
-        color: rgb(0.8, 0.8, 0.8),
+        thickness: 1,
+        color: COLOR_NEON,
       });
 
       currentY = pageHeight - margin - 20;
     }
   };
 
-  // 1. BRAND HEADER & TITLE
-  currentPage.drawText("CLAWCRAFT", {
+  // ==============================================================================
+  // 1. HEADER (Top Left: "CLAWCRAFT STUDIO", Top Right: "OFFICIAL RECEIPT" in Neon)
+  // ==============================================================================
+  currentPage.drawText("CLAWCRAFT STUDIO", {
     x: margin,
     y: currentY - 14,
-    size: 26,
+    size: 20,
     font: fontBold,
-    color: rgb(0.05, 0.05, 0.05),
+    color: COLOR_TEXT_PRIMARY,
   });
 
-  currentPage.drawText("EMPTY CANS. FULL ATTITUDE.", {
+  currentPage.drawText("EMPTY CANS. FULL ATTITUDE. • HANDCRAFTED ART", {
     x: margin,
     y: currentY - 26,
-    size: 8,
+    size: 7.5,
     font: fontBold,
-    color: rgb(0.45, 0.45, 0.45),
+    color: COLOR_NEON_ACID,
   });
 
-  currentPage.drawText("Independent Indian Art Studio • Handcrafted Can Art", {
+  currentPage.drawText("Independent Handmade Art Studio • Jaipur, Rajasthan", {
     x: margin,
     y: currentY - 37,
-    size: 8,
+    size: 7,
     font: fontRegular,
-    color: rgb(0.4, 0.4, 0.4),
+    color: COLOR_TEXT_MUTED,
   });
 
-  // Studio contacts on the right
-  const contactX = pageWidth - margin - 170;
-  currentPage.drawText(`Web: ${siteHost}`, {
-    x: contactX,
-    y: currentY - 12,
-    size: 8,
-    font: fontRegular,
-    color: rgb(0.3, 0.3, 0.3),
+  // Top Right: "OFFICIAL RECEIPT" in Neon Green
+  const receiptTitle = "OFFICIAL RECEIPT";
+  const receiptTitleWidth = fontBold.widthOfTextAtSize(receiptTitle, 14);
+  const contactRightX = pageWidth - margin;
+
+  currentPage.drawText(receiptTitle, {
+    x: contactRightX - receiptTitleWidth,
+    y: currentY - 14,
+    size: 14,
+    font: fontBold,
+    color: COLOR_NEON,
   });
 
-  const supportEmail = options?.supportEmail || process.env.NEXT_PUBLIC_STUDIO_EMAIL;
-  let contactOffset = 23;
-  if (supportEmail) {
-    currentPage.drawText(`Email: ${supportEmail}`, {
-      x: contactX,
+  // Studio contacts under OFFICIAL RECEIPT (right-aligned)
+  let contactOffset = 26;
+  const drawContactRight = (text: string, bold = false) => {
+    const w = (bold ? fontBold : fontRegular).widthOfTextAtSize(text, 7.5);
+    currentPage.drawText(text, {
+      x: contactRightX - w,
       y: currentY - contactOffset,
-      size: 8,
-      font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
+      size: 7.5,
+      font: bold ? fontBold : fontRegular,
+      color: bold ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED,
     });
-    contactOffset += 11;
-  }
+    contactOffset += 10;
+  };
+
+  drawContactRight("www.clawcraftstudio.in");
+
+  const supportEmail =
+    options?.supportEmail || process.env.NEXT_PUBLIC_STUDIO_EMAIL || "support@clawcraftstudio.in";
+  drawContactRight(supportEmail);
+
   const contact = getBusinessContact(options?.whatsappNumber);
   if (contact.isConfigured) {
-    currentPage.drawText(`WhatsApp: ${contact.display}`, {
-      x: contactX,
-      y: currentY - contactOffset,
-      size: 8,
-      font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
-    });
-    contactOffset += 11;
+    drawContactRight(`WhatsApp: ${contact.display}`);
   }
 
   if (options?.gstin) {
-    currentPage.drawText(`GSTIN: ${options.gstin}`, {
-      x: contactX,
-      y: currentY - contactOffset,
-      size: 8,
-      font: fontBold,
-      color: rgb(0.2, 0.2, 0.2),
-    });
+    drawContactRight(`GSTIN: ${options.gstin}`, true);
   }
 
-  currentY -= 55;
+  currentY -= Math.max(54, contactOffset + 4);
 
-  // Divider Line
+  // Subtle Green Underline Separating the Header
   currentPage.drawLine({
     start: { x: margin, y: currentY },
     end: { x: pageWidth - margin, y: currentY },
     thickness: 1.5,
-    color: rgb(0.1, 0.1, 0.1),
+    color: COLOR_NEON,
+  });
+  currentPage.drawLine({
+    start: { x: margin, y: currentY - 1 },
+    end: { x: pageWidth - margin, y: currentY - 1 },
+    thickness: 0.5,
+    color: COLOR_BORDER,
   });
 
-  currentY -= 18;
+  currentY -= 16;
 
-  // Document Title Banner & Status Stamp
-  const isCod = order.payment_method === "cod";
-  const isCodCollected = isCod && (order.payment_status === "cod_collected" || Boolean((order as any).cod_collected_at));
-  const isOnlinePaid = (order.payment_status === "paid" || order.status === "paid") && !isDemo && !isCod;
-  const isFullyPaid = isOnlinePaid || isCodCollected;
-
-  const docTitle = isFullyPaid
-    ? "OFFICIAL ORDER RECEIPT & PAYMENT SLIP"
-    : isCod
-    ? "ORDER CONFIRMATION (PAYMENT ON DELIVERY)"
-    : "ORDER SUMMARY & PAYMENT NOTICE";
-
-  currentPage.drawText(docTitle, {
-    x: margin,
-    y: currentY,
-    size: 11,
-    font: fontBold,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-
-  // Stamp Box on Right
-  let stampText = "PAID";
-  let stampBorderColor = rgb(0.15, 0.55, 0.2); // Green
-  let stampTextColor = rgb(0.15, 0.55, 0.2);
-
-  if (isDemo) {
-    stampText = "DEMO - NOT A REAL PAYMENT";
-    stampBorderColor = rgb(0.8, 0.4, 0.0); // Amber
-    stampTextColor = rgb(0.8, 0.4, 0.0);
-  } else if (isCod) {
-    if (isCodCollected) {
-      const collectedDateStr = (order as any).cod_collected_at
-        ? formatISTDate((order as any).cod_collected_at)
-        : formatISTDate(order.updated_at);
-      stampText = `PAID (CASH) • ${collectedDateStr}`;
-      stampBorderColor = rgb(0.15, 0.55, 0.2); // Green
-      stampTextColor = rgb(0.15, 0.55, 0.2);
-    } else {
-      // Must print "PAYMENT DUE ON DELIVERY: Rs X" (no PAID stamp) until cash is collected
-      stampText = `PAYMENT DUE ON DELIVERY: ${formatSlipRupees(order.total_paise)}`;
-      stampBorderColor = rgb(0.75, 0.4, 0.1); // Amber
-      stampTextColor = rgb(0.75, 0.4, 0.1);
-    }
-  } else if (!isFullyPaid) {
-    stampText = "PAYMENT PENDING";
-    stampBorderColor = rgb(0.7, 0.2, 0.2); // Red
-    stampTextColor = rgb(0.7, 0.2, 0.2);
-  }
-
-  const stampWidth = fontBold.widthOfTextAtSize(stampText, 9) + 16;
-  const stampBoxX = pageWidth - margin - stampWidth;
-  currentPage.drawRectangle({
-    x: stampBoxX,
-    y: currentY - 4,
-    width: stampWidth,
-    height: 18,
-    borderColor: stampBorderColor,
-    borderWidth: 1.2,
-    color: rgb(1, 1, 1),
-  });
-  currentPage.drawText(stampText, {
-    x: stampBoxX + 8,
-    y: currentY + 1,
-    size: 9,
-    font: fontBold,
-    color: stampTextColor,
-  });
-
-  currentY -= 22;
-
-  // 2. ORDER META & CUSTOMER DETAILS (2-Column Grid)
-  const colW = (contentWidth - 20) / 2;
+  // ==============================================================================
+  // 2. ORDER INFO & DELIVERY DESTINATION (2-Column Grid Layout)
+  // ==============================================================================
+  const colSpacing = 14;
+  const colW = (contentWidth - colSpacing) / 2;
   const col1X = margin;
-  const col2X = margin + colW + 20;
+  const col2X = margin + colW + colSpacing;
+  const gridBoxHeight = 118;
 
-  // Left Column: Order Information
+  // --- LEFT COLUMN: ORDER INFORMATION ---
   currentPage.drawRectangle({
     x: col1X,
-    y: currentY - 95,
+    y: currentY - gridBoxHeight,
     width: colW,
-    height: 95,
-    color: rgb(0.97, 0.97, 0.97),
-    borderColor: rgb(0.88, 0.88, 0.88),
-    borderWidth: 0.75,
+    height: gridBoxHeight,
+    color: COLOR_SURFACE,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
+  });
+
+  // Top Neon Accent Border on Order Info Card
+  currentPage.drawLine({
+    start: { x: col1X, y: currentY },
+    end: { x: col1X + colW, y: currentY },
+    thickness: 2,
+    color: COLOR_NEON,
   });
 
   currentPage.drawText("ORDER INFORMATION", {
-    x: col1X + 10,
-    y: currentY - 14,
+    x: col1X + 12,
+    y: currentY - 16,
     size: 8.5,
     font: fontBold,
-    color: rgb(0.2, 0.2, 0.2),
+    color: COLOR_NEON,
   });
 
-  const rowH = 13;
-  let oY = currentY - 30;
+  let oY = currentY - 33;
+  const rowH = 16;
 
-  const drawInfoRow = (x: number, y: number, label: string, val: string, boldVal = false) => {
-    currentPage.drawText(label, { x, y, size: 8, font: fontRegular, color: rgb(0.45, 0.45, 0.45) });
+  const drawOrderInfoRow = (
+    label: string,
+    val: string,
+    boldVal = false,
+    valColor = COLOR_TEXT_PRIMARY
+  ) => {
+    currentPage.drawText(label, {
+      x: col1X + 12,
+      y: oY,
+      size: 8,
+      font: fontRegular,
+      color: COLOR_TEXT_MUTED,
+    });
     currentPage.drawText(val, {
-      x: x + 90,
-      y,
+      x: col1X + 96,
+      y: oY,
       size: 8,
       font: boldVal ? fontBold : fontRegular,
-      color: rgb(0.1, 0.1, 0.1),
+      color: valColor,
     });
+    oY -= rowH;
   };
 
-  drawInfoRow(col1X + 10, oY, "Order Reference:", order.order_number, true);
-  oY -= rowH;
-  drawInfoRow(col1X + 10, oY, "Order Date (IST):", formatISTDate(order.created_at));
-  oY -= rowH;
-  drawInfoRow(
-    col1X + 10,
-    oY,
-    "Payment Status:",
-    isDemo ? "DEMO (No Charge)" : order.payment_status?.toUpperCase() || order.status.toUpperCase(),
-    true
-  );
-  oY -= rowH;
-  drawInfoRow(col1X + 10, oY, "Payment Method:", (order.payment_method || "RAZORPAY").toUpperCase());
-  oY -= rowH;
-  if (order.razorpay_payment_id) {
-    drawInfoRow(col1X + 10, oY, "Transaction ID:", order.razorpay_payment_id);
-  } else {
-    drawInfoRow(col1X + 10, oY, "Fulfillment:", order.status.toUpperCase());
+  drawOrderInfoRow("Order Reference:", order.order_number, true, COLOR_TEXT_PRIMARY);
+  drawOrderInfoRow("Date (IST):", formatISTDate(order.created_at), false, COLOR_TEXT_PRIMARY);
+
+  // Status with Neon Green Badge / Box
+  currentPage.drawText("Status:", {
+    x: col1X + 12,
+    y: oY,
+    size: 8,
+    font: fontRegular,
+    color: COLOR_TEXT_MUTED,
+  });
+
+  let statusBadgeText = "PAID";
+  let statusBadgeBg = rgb(14 / 255, 38 / 255, 14 / 255);
+  let statusBadgeBorder = COLOR_NEON;
+  let statusBadgeColor = COLOR_NEON;
+
+  if (isDemo) {
+    statusBadgeText = "DEMO (TEST)";
+    statusBadgeBg = rgb(38 / 255, 28 / 255, 8 / 255);
+    statusBadgeBorder = COLOR_AMBER;
+    statusBadgeColor = COLOR_AMBER;
+  } else if (isCod) {
+    if (isCodCollected) {
+      statusBadgeText = "PAID (CASH)";
+      statusBadgeBg = rgb(14 / 255, 38 / 255, 14 / 255);
+      statusBadgeBorder = COLOR_NEON;
+      statusBadgeColor = COLOR_NEON;
+    } else {
+      statusBadgeText = "DUE ON DELIVERY";
+      statusBadgeBg = rgb(38 / 255, 28 / 255, 8 / 255);
+      statusBadgeBorder = COLOR_AMBER;
+      statusBadgeColor = COLOR_AMBER;
+    }
+  } else if (!isFullyPaid) {
+    statusBadgeText = "PENDING";
+    statusBadgeBg = rgb(38 / 255, 12 / 255, 12 / 255);
+    statusBadgeBorder = COLOR_RED;
+    statusBadgeColor = COLOR_RED;
   }
 
-  // Right Column: Delivery Destination
+  const badgeTextWidth = fontBold.widthOfTextAtSize(statusBadgeText, 7.5);
+  const badgeWidth = badgeTextWidth + 14;
+  const badgeX = col1X + 96;
+  const badgeY = oY - 3;
+
+  currentPage.drawRectangle({
+    x: badgeX,
+    y: badgeY,
+    width: badgeWidth,
+    height: 14,
+    color: statusBadgeBg,
+    borderColor: statusBadgeBorder,
+    borderWidth: 1,
+  });
+
+  currentPage.drawText(statusBadgeText, {
+    x: badgeX + 7,
+    y: oY + 1,
+    size: 7.5,
+    font: fontBold,
+    color: statusBadgeColor,
+  });
+
+  oY -= rowH;
+
+  const paymentMethodText = isCod
+    ? "CASH ON DELIVERY (COD)"
+    : (order.payment_method || "RAZORPAY").toUpperCase();
+  drawOrderInfoRow("Payment Method:", paymentMethodText, true, COLOR_TEXT_PRIMARY);
+
+  if (order.razorpay_payment_id) {
+    drawOrderInfoRow("Transaction ID:", order.razorpay_payment_id, false, COLOR_TEXT_MUTED);
+  } else {
+    drawOrderInfoRow("Fulfillment:", order.status.toUpperCase(), true, COLOR_TEXT_MUTED);
+  }
+
+  // --- RIGHT COLUMN: DELIVERY DESTINATION ---
   currentPage.drawRectangle({
     x: col2X,
-    y: currentY - 95,
+    y: currentY - gridBoxHeight,
     width: colW,
-    height: 95,
-    color: rgb(0.97, 0.97, 0.97),
-    borderColor: rgb(0.88, 0.88, 0.88),
-    borderWidth: 0.75,
+    height: gridBoxHeight,
+    color: COLOR_SURFACE,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
+  });
+
+  // Top Accent Border on Delivery Card
+  currentPage.drawLine({
+    start: { x: col2X, y: currentY },
+    end: { x: col2X + colW, y: currentY },
+    thickness: 2,
+    color: rgb(70 / 255, 70 / 255, 70 / 255),
   });
 
   currentPage.drawText("DELIVERY DESTINATION", {
-    x: col2X + 10,
-    y: currentY - 14,
+    x: col2X + 12,
+    y: currentY - 16,
     size: 8.5,
     font: fontBold,
-    color: rgb(0.2, 0.2, 0.2),
+    color: COLOR_NEON,
   });
 
-  let dY = currentY - 30;
+  let dY = currentY - 33;
+
+  // Customer Name (Bold)
   currentPage.drawText(order.customer_name, {
-    x: col2X + 10,
+    x: col2X + 12,
     y: dY,
-    size: 8.5,
+    size: 9,
     font: fontBold,
-    color: rgb(0.1, 0.1, 0.1),
+    color: COLOR_TEXT_PRIMARY,
   });
-  dY -= rowH;
+  dY -= 15;
 
-  const addr1 = order.shipping_address_line1 || "";
-  const addr2 = order.shipping_address_line2 ? `, ${order.shipping_address_line2}` : "";
-  currentPage.drawText(`${addr1}${addr2}`.substring(0, 42), {
-    x: col2X + 10,
+  const addr1 = (order.shipping_address_line1 || "").trim();
+  const addr2 = (order.shipping_address_line2 || "").trim();
+
+  currentPage.drawText(addr1.substring(0, 48), {
+    x: col2X + 12,
     y: dY,
     size: 7.5,
     font: fontRegular,
-    color: rgb(0.3, 0.3, 0.3),
+    color: COLOR_TEXT_MUTED,
   });
-  dY -= rowH;
+  dY -= 13;
+
+  if (addr2) {
+    currentPage.drawText(addr2.substring(0, 48), {
+      x: col2X + 12,
+      y: dY,
+      size: 7.5,
+      font: fontRegular,
+      color: COLOR_TEXT_MUTED,
+    });
+    dY -= 13;
+  }
 
   currentPage.drawText(
     `${order.shipping_city}, ${order.shipping_state} - ${order.shipping_pincode}`,
     {
-      x: col2X + 10,
+      x: col2X + 12,
       y: dY,
       size: 7.5,
       font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
+      color: COLOR_TEXT_MUTED,
     }
   );
-  dY -= rowH;
+  dY -= 13;
 
-  currentPage.drawText(`Phone: ${order.customer_phone} • Email: ${order.customer_email}`, {
-    x: col2X + 10,
+  const contactLine = `Ph: ${order.customer_phone} • ${order.customer_email}`;
+  currentPage.drawText(contactLine.substring(0, 46), {
+    x: col2X + 12,
     y: dY,
     size: 7.5,
     font: fontRegular,
-    color: rgb(0.4, 0.4, 0.4),
+    color: COLOR_TEXT_MUTED,
   });
 
-  currentY -= 110;
+  currentY -= gridBoxHeight + 14;
 
   // Optional Courier & Tracking bar if present
   const trackingNumber = order.tracking_id || order.tracking_number;
@@ -454,9 +534,15 @@ export async function buildSlipPdf(
       y: currentY - 24,
       width: contentWidth,
       height: 24,
-      color: rgb(0.94, 0.96, 0.98),
-      borderColor: rgb(0.8, 0.85, 0.9),
-      borderWidth: 0.75,
+      color: COLOR_SURFACE,
+      borderColor: COLOR_BORDER,
+      borderWidth: 1,
+    });
+    currentPage.drawLine({
+      start: { x: margin, y: currentY },
+      end: { x: margin, y: currentY - 24 },
+      thickness: 3,
+      color: COLOR_NEON,
     });
     currentPage.drawText(
       `DISPATCH COURIER: ${order.courier_name.toUpperCase()}   •   AWB / TRACKING ID: ${trackingNumber}`,
@@ -465,67 +551,79 @@ export async function buildSlipPdf(
         y: currentY - 15,
         size: 8,
         font: fontBold,
-        color: rgb(0.1, 0.2, 0.4),
+        color: COLOR_NEON,
       }
     );
-    currentY -= 34;
+    currentY -= 32;
   }
 
-  // 3. ITEMS TABLE
+  // ==============================================================================
+  // 3. ITEM TABLE (Dark Grey Header, Neon Green Text, Alternating Dark Rows)
+  // ==============================================================================
   checkPageOverflow(80);
 
   const drawTableHeader = (y: number) => {
     currentPage.drawRectangle({
       x: margin,
-      y: y - 18,
+      y: y - 20,
       width: contentWidth,
-      height: 18,
-      color: rgb(0.1, 0.1, 0.1),
+      height: 20,
+      color: COLOR_SURFACE_ALT,
+      borderColor: COLOR_BORDER,
+      borderWidth: 1,
+    });
+
+    currentPage.drawLine({
+      start: { x: margin, y: y - 20 },
+      end: { x: pageWidth - margin, y: y - 20 },
+      thickness: 1.5,
+      color: COLOR_NEON,
     });
 
     currentPage.drawText("ITEM / SCULPTURE", {
-      x: margin + 8,
-      y: y - 12,
+      x: margin + 10,
+      y: y - 13,
       size: 8,
       font: fontBold,
-      color: rgb(1, 1, 1),
+      color: COLOR_NEON,
     });
 
     currentPage.drawText("VARIANT / SPEC", {
       x: margin + 230,
-      y: y - 12,
+      y: y - 13,
       size: 8,
       font: fontBold,
-      color: rgb(1, 1, 1),
+      color: COLOR_NEON,
     });
 
     currentPage.drawText("QTY", {
       x: margin + 355,
-      y: y - 12,
+      y: y - 13,
       size: 8,
       font: fontBold,
-      color: rgb(1, 1, 1),
+      color: COLOR_NEON,
     });
 
     currentPage.drawText("UNIT PRICE", {
       x: margin + 400,
-      y: y - 12,
+      y: y - 13,
       size: 8,
       font: fontBold,
-      color: rgb(1, 1, 1),
+      color: COLOR_NEON,
     });
 
+    const totalHdrW = fontBold.widthOfTextAtSize("TOTAL", 8);
     currentPage.drawText("TOTAL", {
-      x: pageWidth - margin - 55,
-      y: y - 12,
+      x: pageWidth - margin - 12 - totalHdrW,
+      y: y - 13,
       size: 8,
       font: fontBold,
-      color: rgb(1, 1, 1),
+      color: COLOR_NEON,
     });
   };
 
   drawTableHeader(currentY);
-  currentY -= 20;
+  currentY -= 22;
 
   const items = order.items || [];
   for (let i = 0; i < items.length; i++) {
@@ -533,133 +631,166 @@ export async function buildSlipPdf(
     checkPageOverflow(26);
 
     const isEven = i % 2 === 0;
-    if (isEven) {
-      currentPage.drawRectangle({
-        x: margin,
-        y: currentY - 20,
-        width: contentWidth,
-        height: 20,
-        color: rgb(0.98, 0.98, 0.98),
-      });
-    }
+    const rowBg = isEven ? COLOR_ROW_EVEN : COLOR_ROW_ODD;
 
-    currentPage.drawLine({
-      start: { x: margin, y: currentY - 20 },
-      end: { x: pageWidth - margin, y: currentY - 20 },
-      thickness: 0.5,
-      color: rgb(0.9, 0.9, 0.9),
+    currentPage.drawRectangle({
+      x: margin,
+      y: currentY - 22,
+      width: contentWidth,
+      height: 22,
+      color: rowBg,
     });
 
-    // Item title
-    currentPage.drawText((item.product_title || "Can Sculpture").substring(0, 36), {
-      x: margin + 8,
-      y: currentY - 14,
-      size: 8,
+    currentPage.drawLine({
+      start: { x: margin, y: currentY - 22 },
+      end: { x: pageWidth - margin, y: currentY - 22 },
+      thickness: 0.5,
+      color: COLOR_BORDER,
+    });
+
+    // Item Title: prominent, bold off-white
+    currentPage.drawText((item.product_title || "Can Sculpture").substring(0, 38), {
+      x: margin + 10,
+      y: currentY - 15,
+      size: 8.5,
       font: fontBold,
-      color: rgb(0.15, 0.15, 0.15),
+      color: COLOR_TEXT_PRIMARY,
     });
 
     // Variant
-    const variantStr = [item.variant_label, item.selected_option].filter(Boolean).join(" • ") || "Standard";
-    currentPage.drawText(variantStr.substring(0, 24), {
+    const variantStr =
+      [item.variant_label, item.selected_option].filter(Boolean).join(" • ") || "Standard";
+    currentPage.drawText(variantStr.substring(0, 32), {
       x: margin + 230,
-      y: currentY - 14,
+      y: currentY - 15,
       size: 7.5,
       font: fontRegular,
-      color: rgb(0.4, 0.4, 0.4),
+      color: COLOR_TEXT_MUTED,
     });
 
     // Qty
     currentPage.drawText(String(item.quantity), {
       x: margin + 365,
-      y: currentY - 14,
+      y: currentY - 15,
       size: 8,
       font: fontRegular,
-      color: rgb(0.2, 0.2, 0.2),
+      color: COLOR_TEXT_PRIMARY,
     });
 
     // Unit Price
     currentPage.drawText(formatSlipRupees(item.unit_price_paise), {
       x: margin + 400,
-      y: currentY - 14,
+      y: currentY - 15,
       size: 8,
       font: fontRegular,
-      color: rgb(0.2, 0.2, 0.2),
+      color: COLOR_TEXT_MUTED,
     });
 
-    // Total Price
+    // Total Price (Right aligned)
     const lineTotalStr = formatSlipRupees(item.total_price_paise);
+    const totalTextW = fontBold.widthOfTextAtSize(lineTotalStr, 8.5);
     currentPage.drawText(lineTotalStr, {
-      x: pageWidth - margin - 55,
-      y: currentY - 14,
-      size: 8,
+      x: pageWidth - margin - 12 - totalTextW,
+      y: currentY - 15,
+      size: 8.5,
       font: fontBold,
-      color: rgb(0.1, 0.1, 0.1),
+      color: COLOR_TEXT_PRIMARY,
     });
 
-    currentY -= 20;
+    currentY -= 22;
   }
 
-  currentY -= 15;
+  currentY -= 16;
 
-  // 4. FINANCIAL TOTALS BLOCK & QR VERIFICATION CODE
-  checkPageOverflow(130);
+  // ==============================================================================
+  // 4. TOTALS SECTION (Bottom Right) & QR VERIFICATION CODE (Left)
+  // ==============================================================================
+  checkPageOverflow(140);
 
-  const totalsBoxWidth = 220;
+  const totalsBoxWidth = 230;
   const totalsBoxX = pageWidth - margin - totalsBoxWidth;
+  const totalsBoxHeight = order.discount_paise > 0 ? 94 : 80;
 
   currentPage.drawRectangle({
     x: totalsBoxX,
-    y: currentY - 80,
+    y: currentY - totalsBoxHeight,
     width: totalsBoxWidth,
-    height: 80,
-    color: rgb(0.97, 0.97, 0.97),
-    borderColor: rgb(0.85, 0.85, 0.85),
-    borderWidth: 0.75,
+    height: totalsBoxHeight,
+    color: COLOR_SURFACE,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
   });
 
-  const drawTotalLine = (y: number, label: string, val: string, isGrand = false) => {
+  // Top Neon Accent Border on Totals Box
+  currentPage.drawLine({
+    start: { x: totalsBoxX, y: currentY },
+    end: { x: totalsBoxX + totalsBoxWidth, y: currentY },
+    thickness: 2,
+    color: COLOR_NEON,
+  });
+
+  const drawTotalLine = (
+    y: number,
+    label: string,
+    val: string,
+    isGrand = false,
+    valColor = COLOR_TEXT_PRIMARY
+  ) => {
     currentPage.drawText(label, {
-      x: totalsBoxX + 12,
+      x: totalsBoxX + 14,
       y,
-      size: isGrand ? 9 : 8,
+      size: isGrand ? 9.5 : 8,
       font: isGrand ? fontBold : fontRegular,
-      color: isGrand ? rgb(0.05, 0.05, 0.05) : rgb(0.4, 0.4, 0.4),
+      color: isGrand ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED,
     });
 
+    const valSize = isGrand ? 12 : 8.5;
+    const valWidth = fontBold.widthOfTextAtSize(val, valSize);
     currentPage.drawText(val, {
-      x: pageWidth - margin - 12 - fontBold.widthOfTextAtSize(val, isGrand ? 10 : 8),
+      x: pageWidth - margin - 14 - valWidth,
       y,
-      size: isGrand ? 10 : 8,
+      size: valSize,
       font: fontBold,
-      color: isGrand ? rgb(0.1, 0.1, 0.1) : rgb(0.2, 0.2, 0.2),
+      color: valColor,
     });
   };
 
-  let tY = currentY - 16;
-  drawTotalLine(tY, "Subtotal:", formatSlipRupees(order.subtotal_paise));
-  tY -= 14;
+  let tY = currentY - 18;
+  drawTotalLine(tY, "Subtotal:", formatSlipRupees(order.subtotal_paise), false, COLOR_TEXT_PRIMARY);
+  tY -= 15;
 
   if (order.discount_paise > 0) {
-    drawTotalLine(tY, "Coupon Discount:", `-${formatSlipRupees(order.discount_paise)}`);
-    tY -= 14;
+    drawTotalLine(
+      tY,
+      "Coupon Discount:",
+      `-${formatSlipRupees(order.discount_paise)}`,
+      false,
+      COLOR_NEON
+    );
+    tY -= 15;
   }
 
+  const shippingText =
+    order.shipping_fee_paise === 0 ? "FREE" : formatSlipRupees(order.shipping_fee_paise);
   drawTotalLine(
     tY,
     "Pan-India Shipping:",
-    order.shipping_fee_paise === 0 ? "FREE" : formatSlipRupees(order.shipping_fee_paise)
+    shippingText,
+    false,
+    order.shipping_fee_paise === 0 ? COLOR_NEON : COLOR_TEXT_PRIMARY
   );
   tY -= 16;
 
+  // Divider Line inside Totals
   currentPage.drawLine({
-    start: { x: totalsBoxX + 10, y: tY + 4 },
-    end: { x: pageWidth - margin - 10, y: tY + 4 },
+    start: { x: totalsBoxX + 12, y: tY + 4 },
+    end: { x: pageWidth - margin - 12, y: tY + 4 },
     thickness: 1,
-    color: rgb(0.2, 0.2, 0.2),
+    color: COLOR_NEON,
   });
 
-  drawTotalLine(tY - 5, "TOTAL AMOUNT:", formatSlipRupees(order.total_paise), true);
+  // TOTAL AMOUNT in large, bold Neon Green font (#39FF14)
+  drawTotalLine(tY - 8, "TOTAL AMOUNT:", formatSlipRupees(order.total_paise), true, COLOR_NEON);
 
   // Generate QR Verification Code on Left Side of Totals
   try {
@@ -672,93 +803,135 @@ export async function buildSlipPdf(
     });
     const qrImage = await pdfDoc.embedPng(qrBuffer);
 
+    const qrBoxSize = 72;
+    const qrBoxX = margin;
+    const qrBoxY = currentY - qrBoxSize;
+
+    // Solid white badge for the QR code so scanners can read it with 100% contrast against the dark background
+    currentPage.drawRectangle({
+      x: qrBoxX,
+      y: qrBoxY,
+      width: qrBoxSize,
+      height: qrBoxSize,
+      color: COLOR_WHITE,
+      borderColor: COLOR_NEON,
+      borderWidth: 1,
+    });
+
     currentPage.drawImage(qrImage, {
-      x: margin,
-      y: currentY - 78,
-      width: 68,
-      height: 68,
+      x: qrBoxX + 3,
+      y: qrBoxY + 3,
+      width: 66,
+      height: 66,
     });
 
-    currentPage.drawText("SCAN TO VERIFY SLIP AUTHENTICITY", {
-      x: margin + 78,
-      y: currentY - 24,
-      size: 7.5,
+    const qrTextX = margin + qrBoxSize + 12;
+
+    currentPage.drawText("SCAN TO VERIFY AUTHENTICITY", {
+      x: qrTextX,
+      y: currentY - 18,
+      size: 8,
       font: fontBold,
-      color: rgb(0.2, 0.2, 0.2),
+      color: COLOR_NEON,
     });
 
-    currentPage.drawText("Scan this QR code to confirm that this order was logged", {
-      x: margin + 78,
-      y: currentY - 36,
+    currentPage.drawText("Scan this QR code to verify this official order", {
+      x: qrTextX,
+      y: currentY - 30,
       size: 7,
       font: fontRegular,
-      color: rgb(0.45, 0.45, 0.45),
+      color: COLOR_TEXT_MUTED,
     });
 
-    currentPage.drawText(`and verified in CLAWCRAFT studio records.`, {
-      x: margin + 78,
-      y: currentY - 46,
+    currentPage.drawText("in Clawcraft Studio vault records.", {
+      x: qrTextX,
+      y: currentY - 40,
       size: 7,
       font: fontRegular,
-      color: rgb(0.45, 0.45, 0.45),
+      color: COLOR_TEXT_MUTED,
     });
 
-    currentPage.drawText(`Verify URL: ${siteUrl}/verify/${order.order_number}`, {
-      x: margin + 78,
-      y: currentY - 58,
+    const verifyShortUrl = `Verify: www.clawcraftstudio.in/verify/${order.order_number}`;
+    currentPage.drawText(verifyShortUrl.substring(0, 48), {
+      x: qrTextX,
+      y: currentY - 52,
       size: 6.5,
       font: fontRegular,
-      color: rgb(0.5, 0.5, 0.5),
+      color: COLOR_TEXT_DIM,
     });
   } catch (qrErr) {
     console.warn("[PDF QR Embed Warning]:", qrErr);
   }
 
-  currentY -= 105;
+  currentY -= Math.max(totalsBoxHeight, 72) + 24;
 
-  // 5. MANDATORY FOOTER DISCLAIMERS
-  checkPageOverflow(60);
+  // ==============================================================================
+  // 5. FOOTER & URL SECTION
+  // ==============================================================================
+  checkPageOverflow(65);
 
   currentPage.drawLine({
     start: { x: margin, y: currentY },
     end: { x: pageWidth - margin, y: currentY },
-    thickness: 0.5,
-    color: rgb(0.85, 0.85, 0.85),
+    thickness: 0.75,
+    color: COLOR_BORDER,
   });
 
-  currentY -= 14;
+  currentY -= 15;
 
-  currentPage.drawText("Computer-generated receipt. This is not a GST tax invoice unless a GSTIN is shown above.", {
+  // Left: "Thank you for supporting handcrafted art."
+  currentPage.drawText("Thank you for supporting handcrafted art.", {
     x: margin,
     y: currentY,
-    size: 7,
-    font: fontRegular,
-    color: rgb(0.4, 0.4, 0.4),
+    size: 8,
+    font: fontBold,
+    color: COLOR_TEXT_PRIMARY,
   });
 
-  currentY -= 11;
+  // Right: www.clawcraftstudio.in in Neon Green
+  const siteUrlText = "www.clawcraftstudio.in";
+  const siteUrlTextW = fontBold.widthOfTextAtSize(siteUrlText, 8);
+  currentPage.drawText(siteUrlText, {
+    x: pageWidth - margin - siteUrlTextW,
+    y: currentY,
+    size: 8,
+    font: fontBold,
+    color: COLOR_NEON,
+  });
+
+  currentY -= 13;
+
   currentPage.drawText(
-    siteConfig.disclaimer,
+    "Computer-generated receipt. This is not a GST tax invoice unless a GSTIN is shown above.",
     {
       x: margin,
       y: currentY,
       size: 6.5,
       font: fontRegular,
-      color: rgb(0.5, 0.5, 0.5),
+      color: COLOR_TEXT_DIM,
     }
   );
 
   currentY -= 11;
+  currentPage.drawText(siteConfig.disclaimer, {
+    x: margin,
+    y: currentY,
+    size: 6,
+    font: fontRegular,
+    color: COLOR_TEXT_DIM,
+  });
+
+  currentY -= 11;
   currentPage.drawText(
-    `Studio Terms & Refund Policy: ${siteUrl}/policies/refund-cancellation   •   Document generated: ${formatISTDate(
+    `Studio Terms & Policies: ${siteUrl}/policies/refund-cancellation   •   Document generated: ${formatISTDate(
       new Date().toISOString()
     )} (IST)`,
     {
       x: margin,
       y: currentY,
-      size: 6.5,
+      size: 6,
       font: fontRegular,
-      color: rgb(0.5, 0.5, 0.5),
+      color: COLOR_TEXT_DIM,
     }
   );
 
