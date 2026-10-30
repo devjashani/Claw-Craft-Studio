@@ -181,29 +181,163 @@ function getMockStore(): AdminMockStore {
 // -------------------------------------------------------------
 // KPI METRICS
 // -------------------------------------------------------------
-export async function getAdminKPIs() {
+export interface AdminKPIs {
+  totalRevenuePaise: number;
+  totalOrdersCount: number;
+  pendingShipmentsCount: number;
+  pendingCourierCount: number;
+  pendingDeliveryCount: number;
+  codCollectedTodayPaise: number;
+  lowStockCount: number;
+}
+
+export async function getAdminKPIs(): Promise<AdminKPIs> {
   try {
     const supabase = createAdminClient();
-    const { data: orders } = await supabase.from("orders").select("total_paise, status, payment_status");
-    const { data: products } = await supabase.from("products").select("stock_count");
 
-    if (orders && products) {
-      const totalRevenuePaise = orders
-        .filter((o) => (o.payment_status || o.status) === "paid")
-        .reduce((sum, o) => sum + (o.total_paise || 0), 0);
-
-      const pendingShipments = orders.filter(
-        (o) => (o.status as string) === "pending" || o.status === "processing" || o.status === "pending_payment"
-      ).length;
-      const lowStockCount = products.filter((p) => p.stock_count <= 3).length;
-
-      return {
-        totalRevenuePaise,
-        totalOrdersCount: orders.length,
-        pendingShipmentsCount: pendingShipments,
-        lowStockCount,
-      };
+    // 1. Attempt pure server-side PostgreSQL RPC function
+    try {
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+        "get_admin_dashboard_metrics"
+      );
+      if (!rpcError && rpcData) {
+        return {
+          totalRevenuePaise: Number(rpcData.total_revenue_paise) || 0,
+          totalOrdersCount: Number(rpcData.total_orders_count) || 0,
+          pendingShipmentsCount: Number(rpcData.pending_shipments_count) || 0,
+          pendingCourierCount: Number(rpcData.pending_courier_count) || 0,
+          pendingDeliveryCount: Number(rpcData.pending_delivery_count) || 0,
+          codCollectedTodayPaise: Number(rpcData.cod_collected_today_paise) || 0,
+          lowStockCount: Number(rpcData.low_stock_count) || 0,
+        };
+      }
+    } catch {
+      // RPC may not yet be created if user hasn't run the migration
     }
+
+    // 2. Fallback: targeted column query excluding archived orders
+    const [ordersRes, productsCountRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select(
+          "total_paise, status, payment_status, payment_method, cod_amount_collected_paise, cod_collected_at, delivery_mode, updated_at"
+        )
+        .is("archived_at", null),
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("is_made_to_order", false)
+        .lte("stock_count", 3),
+    ]);
+
+    const orders = ordersRes.data || [];
+    const lowStockCount = productsCountRes.count ?? 0;
+
+    // Today in IST
+    const todayIST = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    let totalRevenuePaise = 0;
+    let totalOrdersCount = 0;
+    let pendingCourierCount = 0;
+    let pendingDeliveryCount = 0;
+    let codCollectedTodayPaise = 0;
+
+    for (const o of orders) {
+      const status = (o.status || "").toLowerCase();
+      const pStatus = (o.payment_status || "").toLowerCase();
+      const pMethod = (o.payment_method || "").toLowerCase();
+      const isCod = pMethod === "cod";
+
+      // 1. Total Gross Revenue
+      // Paid online + COD with cash collected, minus refunded.
+      // Excludes pending_payment, failed, abandoned, cancelled, and archived.
+      if (!isCod) {
+        const isOnlinePaid =
+          pStatus === "paid" ||
+          (!pStatus && ["paid", "processing", "shipped", "delivered"].includes(status));
+        const isExcluded =
+          ["pending_payment", "cancelled", "refunded"].includes(status) ||
+          ["pending_payment", "failed", "abandoned", "cancelled", "refunded"].includes(pStatus);
+
+        if (isOnlinePaid && !isExcluded) {
+          totalRevenuePaise += o.total_paise || 0;
+        }
+      } else {
+        const isCodCollected = pStatus === "cod_collected" || Boolean(o.cod_collected_at);
+        const isExcluded =
+          ["pending_payment", "cancelled", "refunded"].includes(status) ||
+          ["pending_payment", "failed", "abandoned", "cancelled", "refunded"].includes(pStatus);
+
+        if (isCodCollected && !isExcluded) {
+          totalRevenuePaise += o.cod_amount_collected_paise ?? o.total_paise ?? 0;
+        }
+      }
+
+      // 2. Total Orders
+      // Paid, or COD placed and not cancelled. Excludes unpaid/cancelled.
+      const isUnpaidOrCancelled =
+        ["pending_payment", "cancelled", "refunded"].includes(status) ||
+        ["pending_payment", "failed", "abandoned", "cancelled"].includes(pStatus);
+
+      if (!isUnpaidOrCancelled) {
+        if (!isCod) {
+          if (pStatus === "paid" || ["paid", "processing", "shipped", "delivered"].includes(status)) {
+            totalOrdersCount++;
+          }
+        } else {
+          if (["awaiting_confirmation", "confirmed", "processing", "out_for_delivery", "shipped", "delivered", "paid"].includes(status)) {
+            totalOrdersCount++;
+          }
+        }
+      }
+
+      // 3. Pending Shipments / Pending Delivery
+      // Paid or confirmed orders not yet shipped, out for delivery, delivered, cancelled or archived.
+      const isPendingFulfillment =
+        ["paid", "confirmed", "processing"].includes(status) &&
+        (!isCod ? (pStatus === "paid" || status === "paid" || status === "processing") : ["confirmed", "processing"].includes(status));
+
+      if (isPendingFulfillment) {
+        if (o.delivery_mode === "local") {
+          pendingDeliveryCount++;
+        } else {
+          pendingCourierCount++;
+        }
+      }
+
+      // 4. COD Collected Today (IST)
+      if (isCod && (pStatus === "cod_collected" || o.cod_collected_at) && !["cancelled", "refunded"].includes(status)) {
+        const dateStr = o.cod_collected_at || o.updated_at;
+        if (dateStr) {
+          const istDate = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(dateStr));
+
+          if (istDate === todayIST) {
+            codCollectedTodayPaise += o.cod_amount_collected_paise ?? o.total_paise ?? 0;
+          }
+        }
+      }
+    }
+
+    return {
+      totalRevenuePaise,
+      totalOrdersCount,
+      pendingShipmentsCount: pendingCourierCount + pendingDeliveryCount,
+      pendingCourierCount,
+      pendingDeliveryCount,
+      codCollectedTodayPaise,
+      lowStockCount,
+    };
   } catch {
     // Fallback
   }
@@ -212,6 +346,9 @@ export async function getAdminKPIs() {
     totalRevenuePaise: 0,
     totalOrdersCount: 0,
     pendingShipmentsCount: 0,
+    pendingCourierCount: 0,
+    pendingDeliveryCount: 0,
+    codCollectedTodayPaise: 0,
     lowStockCount: 0,
   };
 }
@@ -419,9 +556,19 @@ export async function getAdminOrders(statusFilter?: string): Promise<Order[]> {
   try {
     const supabase = createAdminClient();
     let query = supabase.from("orders").select("*").order("created_at", { ascending: false });
-    if (statusFilter && statusFilter !== "all") {
-      query = query.eq("status", statusFilter as OrderStatus);
+
+    if (statusFilter === "archived") {
+      query = query.not("archived_at", "is", null);
+    } else if (statusFilter === "all_with_archived") {
+      // Return all orders including archived (used for comprehensive admin views)
+    } else {
+      // Default: exclude archived orders from active fulfillment and status views
+      query = query.is("archived_at", null);
+      if (statusFilter && statusFilter !== "all") {
+        query = query.eq("status", statusFilter as OrderStatus);
+      }
     }
+
     const { data, error } = await query;
     if (!error && data) {
       return data as unknown as Order[];
@@ -430,7 +577,14 @@ export async function getAdminOrders(statusFilter?: string): Promise<Order[]> {
     // Fallback
   }
 
-  return [];
+  const store = getMockStore();
+  if (statusFilter === "archived") {
+    return store.orders.filter((o) => Boolean(o.archived_at));
+  }
+  if (statusFilter && statusFilter !== "all" && statusFilter !== "all_with_archived") {
+    return store.orders.filter((o) => o.status === statusFilter && !o.archived_at);
+  }
+  return store.orders.filter((o) => !o.archived_at);
 }
 
 export async function getAdminOrderById(
@@ -463,6 +617,7 @@ export async function updateAdminOrder({
   tracking_url,
   estimated_delivery_date,
   admin_notes,
+  archived_at,
   notify_customer = false,
 }: {
   id: string;
@@ -475,6 +630,7 @@ export async function updateAdminOrder({
   tracking_url?: string | null;
   estimated_delivery_date?: string | null;
   admin_notes?: string | null;
+  archived_at?: string | null;
   notify_customer?: boolean;
 }): Promise<Order | null> {
   const updates: Record<string, unknown> = {
@@ -490,6 +646,7 @@ export async function updateAdminOrder({
   if (tracking_url !== undefined) updates.tracking_url = tracking_url;
   if (estimated_delivery_date !== undefined) updates.estimated_delivery_date = estimated_delivery_date;
   if (admin_notes !== undefined) updates.admin_notes = admin_notes;
+  if (archived_at !== undefined) updates.archived_at = archived_at;
 
   // If order is being cancelled, idempotently restore inventory stock once
   if (status === "cancelled") {

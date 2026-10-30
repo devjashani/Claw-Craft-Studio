@@ -6,11 +6,12 @@ import Link from "next/link";
 import { Lock, ArrowRight, ShieldCheck, AlertCircle, Sparkles, KeyRound } from "lucide-react";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
+import { validateSafeRedirectPath } from "@/lib/validation/safe-redirect";
 
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get("next") || "/admin";
+  const nextUrl = validateSafeRedirectPath(searchParams.get("next"), "/admin");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

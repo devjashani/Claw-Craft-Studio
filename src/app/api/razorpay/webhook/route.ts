@@ -64,6 +64,19 @@ export async function POST(req: NextRequest) {
         const { data: dbOrder } = await query.maybeSingle();
         const order = dbOrder as unknown as Order | null;
 
+        if (!order) {
+          console.info("[Razorpay Webhook] Order not found for captured/paid event:", {
+            rzpOrderId,
+            notesOrderId,
+            rzpPaymentId,
+            eventType,
+          });
+          return NextResponse.json(
+            { received: true, message: "Order not found" },
+            { status: 200 }
+          );
+        }
+
         if (order) {
           // Idempotency: skip if already marked as paid
           if (order.payment_status === "paid" || order.status === "paid") {
@@ -194,6 +207,11 @@ export async function POST(req: NextRequest) {
           .eq("razorpay_order_id", rzpOrderId)
           .maybeSingle();
 
+        if (!existing) {
+          console.info("[Razorpay Webhook] Order not found for payment.failed:", { rzpOrderId });
+          return NextResponse.json({ received: true, message: "Order not found" }, { status: 200 });
+        }
+
         // Do not touch orders that are already paid
         if (existing && existing.status !== "paid" && existing.payment_status !== "paid") {
           const sanitizedReason = (
@@ -225,6 +243,11 @@ export async function POST(req: NextRequest) {
           .select("id, admin_notes")
           .eq("razorpay_payment_id", paymentId)
           .maybeSingle();
+
+        if (!existing) {
+          console.info("[Razorpay Webhook] Order not found for refund.processed:", { paymentId });
+          return NextResponse.json({ received: true, message: "Order not found" }, { status: 200 });
+        }
 
         if (existing) {
           const refundAmountInRupees = (refund.amount || 0) / 100;

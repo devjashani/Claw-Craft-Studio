@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       tracking_url: body.tracking_url,
       estimated_delivery_date: body.estimated_delivery_date,
       admin_notes: body.admin_notes,
+      archived_at: body.archived_at,
       notify_customer: Boolean(body.notify_customer),
     });
 
@@ -49,10 +50,21 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const auditAction =
+      body.archived_at !== undefined
+        ? body.archived_at
+          ? "order_archive"
+          : "order_unarchive"
+        : "order_status_update";
+    const auditTarget =
+      body.archived_at !== undefined
+        ? `order_${params.id}_${body.archived_at ? "archived" : "unarchived"}`
+        : `order_${params.id}_to_${body.status || "updated"}`;
+
     await logAdminAudit({
       adminEmail: session?.email || "admin",
-      action: "order_status_update",
-      target: `order_${params.id}_to_${body.status || "updated"}`,
+      action: auditAction,
+      target: auditTarget,
       ip,
       success: true,
     });

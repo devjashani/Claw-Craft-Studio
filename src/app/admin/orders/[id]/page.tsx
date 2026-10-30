@@ -29,6 +29,8 @@ import {
   Save,
   Send,
   ExternalLink,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 
 export default function AdminOrderDetailPage() {
@@ -56,6 +58,7 @@ export default function AdminOrderDetailPage() {
   const [showCodCollectionModal, setShowCodCollectionModal] = useState(false);
   const [collectedAmountRupees, setCollectedAmountRupees] = useState("");
   const [collectedDate, setCollectedDate] = useState("");
+  const [togglingArchive, setTogglingArchive] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -101,6 +104,34 @@ export default function AdminOrderDetailPage() {
       }
     } catch {
       showToast("Failed to update status", "error");
+    }
+  };
+
+  const handleToggleArchive = async () => {
+    if (!order) return;
+    setTogglingArchive(true);
+    const willArchive = !order.archived_at;
+    try {
+      const newArchivedAt = willArchive ? new Date().toISOString() : null;
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived_at: newArchivedAt }),
+      });
+      if (res.ok) {
+        setOrder({ ...order, archived_at: newArchivedAt });
+        showToast(
+          willArchive ? "Order archived (hidden from dashboard)" : "Order unarchived (restored to active)",
+          "success"
+        );
+        refreshAdminCounts();
+      } else {
+        showToast("Failed to update archive status", "error");
+      }
+    } catch {
+      showToast("Failed to update archive status", "error");
+    } finally {
+      setTogglingArchive(false);
     }
   };
 
@@ -318,8 +349,48 @@ export default function AdminOrderDetailPage() {
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Customer Track View</span>
           </Link>
+
+          <button
+            onClick={handleToggleArchive}
+            disabled={togglingArchive}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 border text-xs font-mono uppercase tracking-wider rounded transition-colors disabled:opacity-50 ${
+              order.archived_at
+                ? "bg-acid/15 border-acid text-acid hover:bg-acid/25 font-bold"
+                : "bg-void border-subtle hover:border-amber-500/50 text-muted hover:text-amber-400"
+            }`}
+            title={order.archived_at ? "Restore order to active dashboard" : "Archive (hide test order)"}
+          >
+            {order.archived_at ? (
+              <ArchiveRestore className="w-3.5 h-3.5" />
+            ) : (
+              <Archive className="w-3.5 h-3.5" />
+            )}
+            <span>{order.archived_at ? "Unarchive Order" : "Archive (Hide Test Order)"}</span>
+          </button>
         </div>
       </div>
+
+      {/* Archived Banner Notice */}
+      {order.archived_at && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-amber-300">
+          <div className="flex items-center gap-2.5">
+            <Archive className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>ARCHIVED TEST ORDER:</strong> This order was archived on{" "}
+              {new Date(order.archived_at).toLocaleString("en-IN")}. It is hidden from
+              dashboard revenue, order counts, and active fulfillment queues.
+            </span>
+          </div>
+          <button
+            onClick={handleToggleArchive}
+            disabled={togglingArchive}
+            className="inline-flex items-center gap-1 text-xs font-bold text-amber-200 hover:text-bone underline shrink-0 uppercase"
+          >
+            <ArchiveRestore className="w-3.5 h-3.5" />
+            <span>Unarchive</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Grid: 2 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AdminNavBadge } from "./admin-nav-badge";
 import { useAdminCountsContext } from "./admin-counts-context";
-import { absoluteUrl } from "@/lib/site";
 
 interface AdminNavProps {
   userEmail?: string;
@@ -85,7 +84,7 @@ export function AdminNav({ userEmail = "" }: AdminNavProps) {
             {/* Right Action Block for 2-Row View (lg to 2xl): Store + Account + Logout */}
             <div className="hidden lg:flex 2xl:hidden items-center gap-3 shrink-0">
               <Link
-                href={absoluteUrl("/")}
+                href="/"
                 target="_blank"
                 className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-bone transition-colors py-1.5 px-2.5 rounded bg-void border border-subtle shrink-0"
                 title="Open Public Storefront"
@@ -130,7 +129,7 @@ export function AdminNav({ userEmail = "" }: AdminNavProps) {
           </div>
 
           {/* Row 2 (Desktop): Nav links below brand row on 1024-1535px; Centred on 1536px+ */}
-          <nav className="hidden lg:flex items-center flex-wrap gap-2 xl:gap-2.5 pt-1 pb-0.5 2xl:pt-0 2xl:pb-0 w-full 2xl:w-auto 2xl:flex-1 2xl:justify-center overflow-visible">
+          <nav className="hidden lg:flex items-center flex-wrap gap-2 xl:gap-2.5 pt-1 pb-0.5 2xl:pt-0 2xl:pb-0 w-full 2xl:w-auto 2xl:flex-1 min-w-0 flex-1 min-w-0 2xl:justify-center overflow-visible">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive =
@@ -175,7 +174,7 @@ export function AdminNav({ userEmail = "" }: AdminNavProps) {
           {/* Wide Screens Single-Row Right Zone (2xl+: 1536px+) */}
           <div className="hidden 2xl:flex items-center gap-3 shrink-0 justify-end overflow-visible">
             <Link
-              href={absoluteUrl("/")}
+              href="/"
               target="_blank"
               className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-bone transition-colors py-1.5 px-2.5 rounded bg-void border border-subtle shrink-0"
               title="Open Public Storefront"
@@ -267,7 +266,7 @@ export function AdminNav({ userEmail = "" }: AdminNavProps) {
 
           <div className="pt-4 border-t border-subtle flex items-center justify-between">
             <Link
-              href={absoluteUrl("/")}
+              href="/"
               target="_blank"
               className="text-xs font-mono text-muted hover:text-bone flex items-center gap-1.5"
             >

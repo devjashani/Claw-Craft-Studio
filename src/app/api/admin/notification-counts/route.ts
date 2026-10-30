@@ -36,11 +36,12 @@ export async function GET(req: NextRequest) {
     try {
       const supabase = createAdminClient();
 
-      // Query 1: Exact count of orders awaiting fulfillment + latest order number only
+      // Query 1: Exact count of unarchived orders awaiting fulfillment + latest order number only
       const { count: oCount, data: oData, error: oError } = await supabase
         .from("orders")
         .select("order_number, created_at", { count: "exact" })
         .in("status", ATTENTION_ORDER_STATUSES)
+        .is("archived_at", null)
         .order("created_at", { ascending: false })
         .limit(1);
 

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ClawButton } from "@/components/ui/claw-button";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import { useToast } from "@/components/ui/toast";
+import { validateSafeRedirectPath } from "@/lib/validation/safe-redirect";
 import {
   Lock,
   Mail,
@@ -65,7 +66,7 @@ export function AuthCard({ initialMode = "login" }: AuthCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
-  const nextUrl = searchParams.get("next") || "/account";
+  const nextUrl = validateSafeRedirectPath(searchParams.get("next"), "/account");
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");

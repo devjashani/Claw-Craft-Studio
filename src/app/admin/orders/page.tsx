@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Order } from "@/types/shop";
 import { formatINR } from "@/lib/utils";
+import { refreshAdminCounts } from "@/lib/admin/attention";
 import {
   Package,
   Search,
@@ -14,6 +15,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 
 export default function AdminOrdersPage() {
@@ -21,10 +24,11 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch("/api/admin/orders");
+      const res = await fetch("/api/admin/orders?include_archived=true");
       const data = await res.json();
       if (data.orders) {
         setOrders(data.orders);
@@ -40,9 +44,42 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
+  const handleArchiveToggle = async (orderId: string, willArchive: boolean) => {
+    setArchivingId(orderId);
+    try {
+      const newArchivedAt = willArchive ? new Date().toISOString() : null;
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived_at: newArchivedAt }),
+      });
+      if (res.ok) {
+        setOrders((prev) =>
+          prev.map((ord) =>
+            ord.id === orderId ? { ...ord, archived_at: newArchivedAt } : ord
+          )
+        );
+        refreshAdminCounts();
+      }
+    } catch (err) {
+      console.error("Failed to toggle order archive state", err);
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
-    const matchesStatus =
-      statusFilter === "all" || o.status === statusFilter;
+    const isArchived = Boolean(o.archived_at);
+    let matchesStatus = false;
+
+    if (statusFilter === "archived") {
+      matchesStatus = isArchived;
+    } else if (statusFilter === "all") {
+      matchesStatus = !isArchived;
+    } else {
+      matchesStatus = !isArchived && o.status === statusFilter;
+    }
+
     const query = search.toLowerCase().trim();
     const matchesSearch =
       !query ||
@@ -138,8 +175,9 @@ export default function AdminOrdersPage() {
   };
 
   const getStatusCount = (st: string) => {
-    if (st === "all") return orders.length;
-    return orders.filter((o) => o.status === st).length;
+    if (st === "archived") return orders.filter((o) => Boolean(o.archived_at)).length;
+    if (st === "all") return orders.filter((o) => !o.archived_at).length;
+    return orders.filter((o) => !o.archived_at && o.status === st).length;
   };
 
   return (
@@ -184,13 +222,14 @@ export default function AdminOrdersPage() {
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
           {[
-            { id: "all", label: "All" },
+            { id: "all", label: "All Active" },
             { id: "paid", label: "Paid" },
             { id: "processing", label: "Processing" },
             { id: "shipped", label: "Shipped" },
             { id: "delivered", label: "Delivered" },
             { id: "pending_payment", label: "Pending Payment" },
             { id: "cancelled", label: "Cancelled" },
+            { id: "archived", label: "Archived" },
           ].map((tab) => {
             const count = getStatusCount(tab.id);
             const isSelected = statusFilter === tab.id;
@@ -301,11 +340,18 @@ export default function AdminOrdersPage() {
 
                       {/* Status */}
                       <td className="py-4 px-4">
-                        <span
-                          className={`inline-block text-[10px] font-mono uppercase px-2.5 py-0.5 border rounded-sm ${badgeClass}`}
-                        >
-                          {ord.status.replace("_", " ")}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`inline-block text-[10px] font-mono uppercase px-2.5 py-0.5 border rounded-sm ${badgeClass}`}
+                          >
+                            {ord.status.replace("_", " ")}
+                          </span>
+                          {ord.archived_at && (
+                            <span className="inline-block text-[9px] font-mono uppercase px-1.5 py-0.5 border border-amber-500/40 bg-amber-500/10 text-amber-300 rounded-sm">
+                              Archived
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Courier / AWB */}
@@ -329,13 +375,37 @@ export default function AdminOrdersPage() {
 
                       {/* Actions */}
                       <td className="py-4 px-4 text-right">
-                        <Link
-                          href={`/admin/orders/${ord.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-void border border-subtle hover:border-acid text-bone hover:text-acid text-xs font-mono uppercase tracking-wider rounded transition-colors"
-                        >
-                          <span>Manage</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="inline-flex items-center gap-2 justify-end">
+                          {ord.archived_at ? (
+                            <button
+                              onClick={() => handleArchiveToggle(ord.id, false)}
+                              disabled={archivingId === ord.id}
+                              title="Restore to active store orders"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-void border border-acid/40 hover:border-acid text-acid text-xs font-mono uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                            >
+                              <ArchiveRestore className="w-3.5 h-3.5" />
+                              <span>Unarchive</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleArchiveToggle(ord.id, true)}
+                              disabled={archivingId === ord.id}
+                              title="Archive (hide test order)"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-void border border-subtle hover:border-amber-500/50 text-muted hover:text-amber-400 text-xs font-mono uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                              <span>Archive</span>
+                            </button>
+                          )}
+
+                          <Link
+                            href={`/admin/orders/${ord.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-void border border-subtle hover:border-acid text-bone hover:text-acid text-xs font-mono uppercase tracking-wider rounded transition-colors"
+                          >
+                            <span>Manage</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -2,14 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateSafeRedirectPath } from "@/lib/validation/safe-redirect";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const rawNext = requestUrl.searchParams.get("next") || "/account";
-
-  // Prevent open redirect vulnerabilities: ensure next starts with '/' and not '//'
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/account";
+  const rawNext = requestUrl.searchParams.get("next");
+  const next = validateSafeRedirectPath(rawNext, "/account");
 
   // Rate limiting based on IP
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";

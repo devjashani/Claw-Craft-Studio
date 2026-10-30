@@ -31,7 +31,6 @@ import {
   Check,
   Compass,
 } from "lucide-react";
-import { absoluteUrl } from "@/lib/site";
 
 export default function AdminCustomRequestsPage() {
   const { showToast } = useToast();
@@ -255,7 +254,7 @@ export default function AdminCustomRequestsPage() {
               `Hello ${req.name}, this is CLAWCRAFT Studio regarding your custom can sculpture commission inquiry [${refCode}].`
             )}`;
             const publicTrackUrl = req.public_token
-              ? absoluteUrl("/track/custom", { ref: refCode, t: req.public_token })
+              ? `/track/custom?ref=${encodeURIComponent(refCode)}&t=${encodeURIComponent(req.public_token)}`
               : null;
 
             return (

@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
     if (!isAdmin) return errorResponse;
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || "all";
+    const includeArchived = searchParams.get("include_archived") === "true";
+    const rawStatus = searchParams.get("status") || "all";
+    const status = includeArchived && rawStatus === "all" ? "all_with_archived" : rawStatus;
     const orders = await getAdminOrders(status);
 
     return NextResponse.json({ orders });

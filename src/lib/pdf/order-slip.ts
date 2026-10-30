@@ -269,7 +269,7 @@ export async function buildSlipPdf(
     contactOffset += 10;
   };
 
-  drawContactRight("www.clawcraftstudio.in");
+  drawContactRight(getSiteHost() || "clawcraftstudio.in");
 
   const supportEmail =
     options?.supportEmail || process.env.NEXT_PUBLIC_STUDIO_EMAIL || "support@clawcraftstudio.in";
@@ -851,7 +851,7 @@ export async function buildSlipPdf(
       color: COLOR_TEXT_MUTED,
     });
 
-    const verifyShortUrl = `Verify: www.clawcraftstudio.in/verify/${order.order_number}`;
+    const verifyShortUrl = `Verify: ${getSiteHost() || "clawcraftstudio.in"}/verify/${order.order_number}`;
     currentPage.drawText(verifyShortUrl.substring(0, 48), {
       x: qrTextX,
       y: currentY - 52,
@@ -888,8 +888,8 @@ export async function buildSlipPdf(
     color: COLOR_TEXT_PRIMARY,
   });
 
-  // Right: www.clawcraftstudio.in in Neon Green
-  const siteUrlText = "www.clawcraftstudio.in";
+  // Right: Primary studio domain in Neon Green
+  const siteUrlText = getSiteHost() || "clawcraftstudio.in";
   const siteUrlTextW = fontBold.widthOfTextAtSize(siteUrlText, 8);
   currentPage.drawText(siteUrlText, {
     x: pageWidth - margin - siteUrlTextW,

@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { initialProductsFallback } from "@/lib/products";
+import { getAdminKPIs } from "@/lib/admin/admin-data";
 import { formatINR } from "@/lib/utils";
 import { FiligreeCorner } from "@/components/ui/filigree-corner";
 import {
@@ -23,110 +24,73 @@ export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
-  let orders: any[] = [];
-  let products: any[] = [];
-  let customRequests: any[] = [];
+  let recentOrders: any[] = [];
+  let lowStockProducts: any[] = [];
+  let pendingRequests: any[] = [];
+
+  // Fetch consolidated database aggregates without loading full tables into memory
+  const metrics = await getAdminKPIs();
 
   try {
     const supabase = createAdminClient();
-    const [ordersRes, productsRes, requestsRes] = await Promise.all([
-      supabase.from("orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("products").select("*").order("display_order", { ascending: true }),
-      supabase.from("custom_requests").select("*").order("created_at", { ascending: false }),
+    const [recentOrdersRes, lowStockRes, requestsRes] = await Promise.all([
+      // Only fetch 5 recent active (unarchived) orders
+      supabase
+        .from("orders")
+        .select("id, order_number, customer_name, shipping_city, shipping_state, total_paise, payment_method, status, payment_status, delivery_mode, created_at")
+        .is("archived_at", null)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      // Only fetch active low stock products
+      supabase
+        .from("products")
+        .select("id, title, cans_count, price_paise, stock_count")
+        .eq("is_active", true)
+        .eq("is_made_to_order", false)
+        .lte("stock_count", 3)
+        .order("stock_count", { ascending: true })
+        .limit(5),
+      // Only fetch pending custom requests
+      supabase
+        .from("custom_requests")
+        .select("id, name, concept_description, budget_inr, status, created_at")
+        .in("status", ["new", "reviewing", "reviewed", "quoted", "in_discussion"])
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
-    if (ordersRes.data) {
-      orders = ordersRes.data;
+    if (recentOrdersRes.data) {
+      recentOrders = recentOrdersRes.data;
     }
-    if (productsRes.data && productsRes.data.length > 0) {
-      products = productsRes.data;
+    if (lowStockRes.data) {
+      lowStockProducts = lowStockRes.data;
     }
     if (requestsRes.data) {
-      customRequests = requestsRes.data;
+      pendingRequests = requestsRes.data;
     }
   } catch (err) {
     console.error("[Admin Dashboard] Supabase fetch error:", err);
   }
 
-  // Use catalog fallback for product stock alerts if table is empty
-  if (products.length === 0) {
-    products = initialProductsFallback;
+  // Fallback products if catalog is completely empty in test environment
+  if (lowStockProducts.length === 0 && metrics.lowStockCount === 0) {
+    // None needed if stock is sufficient
   }
 
-  // 1. Total Revenue: Sum of total_amount from orders where payment_status = 'paid'
-  const paidOrders = orders.filter((o) => {
-    const pStatus = (o.payment_status || o.status || "").toLowerCase();
-    return pStatus === "paid";
-  });
+  // Dynamic shipment title and caption based on delivery mode (Jaipur local vs courier)
+  const isOnlyLocalPending = metrics.pendingDeliveryCount > 0 && metrics.pendingCourierCount === 0;
+  const isMixedPending = metrics.pendingDeliveryCount > 0 && metrics.pendingCourierCount > 0;
+  const pendingShipmentsTitle = isOnlyLocalPending
+    ? "Pending Delivery"
+    : isMixedPending
+    ? "Pending Fulfillment"
+    : "Pending Shipments";
 
-  const totalRevenuePaise = paidOrders.reduce((sum, o) => {
-    if (typeof o.total_paise === "number") return sum + o.total_paise;
-    if (typeof o.total_amount === "number") return sum + Math.round(o.total_amount * 100);
-    return sum;
-  }, 0);
-
-  // 2. Total Orders: Count of all rows in orders
-  const totalOrdersCount = orders.length;
-
-  // 3. Pending Shipments: Count where status = 'pending' or 'processing'
-  const pendingShipmentsCount = orders.filter((o) => {
-    const s = (o.status || "").toLowerCase();
-    return s === "pending" || s === "processing" || s === "pending_payment";
-  }).length;
-
-  // 4. Low Stock Alerts: Count products where stock <= 3
-  const lowStockProducts = products.filter((p) => {
-    const stock = typeof p.stock_count === "number" ? p.stock_count : (p.stock ?? 5);
-    return stock <= 3;
-  });
-  const lowStockCount = lowStockProducts.length;
-
-  // 6. COD cash collected today (IST)
-  const todayISTDateStr = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
-  const codCollectedTodayPaise = orders.reduce((sum, o) => {
-    if (
-      o.payment_method === "cod" &&
-      (o.payment_status === "cod_collected" || o.cod_collected_at)
-    ) {
-      const collectedDate = o.cod_collected_at || o.updated_at;
-      if (collectedDate) {
-        const orderISTDate = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date(collectedDate));
-
-        if (orderISTDate === todayISTDateStr) {
-          const amt =
-            typeof o.cod_amount_collected_paise === "number"
-              ? o.cod_amount_collected_paise
-              : typeof o.total_paise === "number"
-              ? o.total_paise
-              : 0;
-          return sum + amt;
-        }
-      }
-    }
-    return sum;
-  }, 0);
-
-  // 5. Recent Orders: Fetch the 5 most recent orders (id, customer_name, city, total_amount, status)
-  const recentOrders = orders.slice(0, 5);
-  const pendingRequests = customRequests.filter(
-    (r) =>
-      r.status === "new" ||
-      r.status === "reviewing" ||
-      r.status === "reviewed" ||
-      r.status === "quoted" ||
-      r.status === "in_discussion"
-  );
+  const pendingShipmentsCaption = isOnlyLocalPending
+    ? "Jaipur local orders awaiting hand-delivery"
+    : isMixedPending
+    ? `${metrics.pendingCourierCount} courier • ${metrics.pendingDeliveryCount} Jaipur hand-delivery`
+    : "Paid / confirmed orders awaiting courier pickup";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -157,7 +121,7 @@ export default async function AdminDashboardPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-ash border border-subtle hover:border-steel text-bone transition-colors text-xs font-mono uppercase tracking-wider rounded"
           >
             <Package className="w-4 h-4 text-acid" />
-            <span>View Orders ({totalOrdersCount})</span>
+            <span>View Orders ({metrics.totalOrdersCount})</span>
           </Link>
         </div>
       </div>
@@ -172,11 +136,11 @@ export default async function AdminDashboardPage() {
             <IndianRupee className="w-4 h-4 text-acid" />
           </div>
           <div className="mt-3 font-heading text-3xl text-bone">
-            {formatINR(totalRevenuePaise)}
+            {formatINR(metrics.totalRevenuePaise)}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-mono text-muted">
             <span className="text-acid">●</span>
-            <span>Recorded sales across Indian states</span>
+            <span>Paid online + COD cash collected, minus refunds</span>
           </div>
         </div>
 
@@ -188,25 +152,25 @@ export default async function AdminDashboardPage() {
             <Package className="w-4 h-4 text-steel" />
           </div>
           <div className="mt-3 font-heading text-3xl text-bone">
-            {totalOrdersCount}
+            {metrics.totalOrdersCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
-            <span>Across all online payments & COD</span>
+            <span>Paid online & active COD placed (excludes unpaid & cancelled)</span>
           </div>
         </div>
 
-        {/* Pending Shipments */}
+        {/* Pending Shipments / Pending Delivery */}
         <div className="relative bg-ash border border-subtle p-5 rounded">
           <FiligreeCorner position="top-right" size={14} />
           <div className="flex items-center justify-between text-muted text-xs font-mono uppercase">
-            <span>Pending Shipments</span>
+            <span>{pendingShipmentsTitle}</span>
             <Truck className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-3 font-heading text-3xl text-amber-400">
-            {pendingShipmentsCount}
+            {metrics.pendingShipmentsCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
-            <span>Awaiting courier pickup / AWB</span>
+            <span>{pendingShipmentsCaption}</span>
           </div>
         </div>
 
@@ -218,10 +182,10 @@ export default async function AdminDashboardPage() {
             <Truck className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-3 font-heading text-3xl text-emerald-400">
-            {formatINR(codCollectedTodayPaise)}
+            {formatINR(metrics.codCollectedTodayPaise)}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
-            <span>Cash in hand (Jaipur local)</span>
+            <span>Cash collected today (IST 00:00–23:59) for local delivery</span>
           </div>
         </div>
 
@@ -233,10 +197,10 @@ export default async function AdminDashboardPage() {
             <AlertTriangle className="w-4 h-4 text-blood" />
           </div>
           <div className="mt-3 font-heading text-3xl text-blood">
-            {lowStockCount}
+            {metrics.lowStockCount}
           </div>
           <div className="mt-2 text-[11px] font-mono text-muted">
-            <span>Products with ≤ 3 ready units</span>
+            <span>Active sculptures with ≤ 3 ready units</span>
           </div>
         </div>
       </div>
@@ -254,7 +218,7 @@ export default async function AdminDashboardPage() {
               href="/admin/orders"
               className="text-xs font-mono text-acid hover:underline flex items-center gap-1"
             >
-              <span>View All ({orders.length})</span>
+              <span>View All ({metrics.totalOrdersCount})</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -262,7 +226,7 @@ export default async function AdminDashboardPage() {
           <div className="bg-ash border border-subtle rounded overflow-hidden">
             {recentOrders.length === 0 ? (
               <div className="p-8 text-center text-muted text-xs font-mono">
-                No orders registered yet. Real customer payments will appear here automatically.
+                No active orders registered yet. Real customer payments will appear here automatically.
               </div>
             ) : (
               <div className="divide-y divide-subtle/60">

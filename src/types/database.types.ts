@@ -278,6 +278,7 @@ export interface Database {
           cod_collected_at?: string | null;
           stock_deducted?: boolean;
           stock_restored?: boolean;
+          archived_at?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -320,6 +321,7 @@ export interface Database {
           cod_collected_at?: string | null;
           stock_deducted?: boolean;
           stock_restored?: boolean;
+          archived_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -362,6 +364,7 @@ export interface Database {
           cod_collected_at?: string | null;
           stock_deducted?: boolean;
           stock_restored?: boolean;
+          archived_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -663,6 +666,20 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      get_admin_dashboard_metrics: {
+        Args: Record<string, never>;
+        Returns: {
+          total_revenue_paise: number;
+          total_orders_count: number;
+          pending_shipments_count: number;
+          pending_courier_count: number;
+          pending_delivery_count: number;
+          cod_collected_today_paise: number;
+          low_stock_count: number;
+          attention_orders_count: number;
+          attention_inquiries_count: number;
+        };
+      };
       decrement_stock_on_paid_order: {
         Args: { target_order_id: string };
         Returns: void;

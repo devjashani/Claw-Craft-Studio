@@ -139,18 +139,23 @@ export async function POST(req: NextRequest) {
 
     // 5. Fetch Order from Supabase Database
     const supabase = createAdminClient();
-    const { data: dbOrder, error: orderErr } = await supabase
+    const { data: dbOrder } = await supabase
       .from("orders")
       .select("*")
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
     const order = dbOrder as unknown as Order | null;
 
     if (!order) {
+      console.info("[Payment Verify] Order not found in studio database:", {
+        orderId,
+        razorpay_order_id,
+        razorpay_payment_id,
+      });
       return NextResponse.json(
-        { error: "Order record not found in studio database." },
-        { status: 404 }
+        { verified: false, message: "Order not found", notFound: true },
+        { status: 200 }
       );
     }
 
