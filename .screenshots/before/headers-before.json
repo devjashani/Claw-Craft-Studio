@@ -1,0 +1,50 @@
+{
+  "/": {
+    "status": 200,
+    "x-powered-by": "Next.js",
+    "content-type": "text/html; charset=utf-8",
+    "content-length": 172347
+  },
+  "/shop": {
+    "status": 200,
+    "x-powered-by": "Next.js",
+    "content-type": "text/html; charset=utf-8",
+    "content-length": 118817
+  },
+  "/about": {
+    "status": 200,
+    "x-powered-by": "Next.js",
+    "content-type": "text/html; charset=utf-8",
+    "content-length": "55471"
+  },
+  "/contact": {
+    "status": 200,
+    "x-powered-by": "Next.js",
+    "content-type": "text/html; charset=utf-8",
+    "content-length": "43455"
+  },
+  "/custom": {
+    "status": 200,
+    "x-powered-by": "Next.js",
+    "content-type": "text/html; charset=utf-8",
+    "content-length": "55980"
+  },
+  "/sitemap.xml": {
+    "status": 200,
+    "x-powered-by": null,
+    "content-type": "application/xml",
+    "content-length": 3350
+  },
+  "/robots.txt": {
+    "status": 200,
+    "x-powered-by": null,
+    "content-type": "text/plain",
+    "content-length": 470
+  },
+  "/manifest.webmanifest": {
+    "status": 200,
+    "x-powered-by": null,
+    "content-type": "application/manifest+json",
+    "content-length": 418
+  }
+}
